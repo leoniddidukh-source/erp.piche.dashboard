@@ -147,6 +147,22 @@
   background: transparent;
   color: inherit;
   font-size: 0.85rem;
+  transition: all 150ms ease;
+}
+
+.ghost-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ghost-btn:not(:disabled):hover {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.undo-redo-controls {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .board-wrapper {

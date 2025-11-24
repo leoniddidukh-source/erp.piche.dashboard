@@ -69,6 +69,12 @@ type ChannelMessage =
       history: HistoryItem
       senderId: string
     }
+  | {
+      kind: 'undo-redo'
+      shapes: Shape[]
+      history: HistoryItem[]
+      senderId: string
+    }
 
 const STORAGE_KEYS = {
   shapes: 'dashboard.whiteboard.shapes',
@@ -156,6 +162,9 @@ function App() {
   const channelRef = useRef<BroadcastChannel | null>(null)
   const shapesRef = useRef<Shape[]>(shapes)
   const historyRef = useRef<HistoryItem[]>(history)
+  const undoStackRef = useRef<Array<{ shapes: Shape[]; history: HistoryItem[] }>>([])
+  const redoStackRef = useRef<Array<{ shapes: Shape[]; history: HistoryItem[] }>>([])
+  const isUndoRedoRef = useRef(false)
 
   useEffect(() => {
     shapesRef.current = shapes
@@ -170,6 +179,18 @@ function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.user, userName)
   }, [userName])
+
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+
+  useEffect(() => {
+    const checkUndoRedo = () => {
+      setCanUndo(undoStackRef.current.length > 0)
+      setCanRedo(redoStackRef.current.length > 0)
+    }
+    checkUndoRedo()
+  }, [shapes, history])
+
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -211,6 +232,11 @@ function App() {
           setShapes(normalizeShapes(payload.shapes))
           setHistory(payload.history)
           break
+        case 'undo-redo':
+          isUndoRedoRef.current = true
+          setShapes(normalizeShapes(payload.shapes))
+          setHistory(payload.history)
+          break
         default:
           break
       }
@@ -232,6 +258,21 @@ function App() {
     [channelRef],
   )
 
+  const saveStateForUndo = useCallback(() => {
+    if (isUndoRedoRef.current) {
+      isUndoRedoRef.current = false
+      return
+    }
+    undoStackRef.current.push({
+      shapes: [...shapesRef.current],
+      history: [...historyRef.current],
+    })
+    undoStackRef.current = undoStackRef.current.slice(-50)
+    redoStackRef.current = []
+    setCanUndo(true)
+    setCanRedo(false)
+  }, [])
+
   const pushHistory = useCallback(
     (description: string, userOverride?: string) => {
       const entry: HistoryItem = {
@@ -246,8 +287,69 @@ function App() {
     [userName],
   )
 
+  const performUndo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return
+    const previousState = undoStackRef.current.pop()!
+    redoStackRef.current.push({
+      shapes: [...shapesRef.current],
+      history: [...historyRef.current],
+    })
+    isUndoRedoRef.current = true
+    setShapes(previousState.shapes)
+    setHistory(previousState.history)
+    setCanUndo(undoStackRef.current.length > 0)
+    setCanRedo(true)
+    pushHistory(`${userName} undid last action`)
+    broadcast({
+      kind: 'undo-redo',
+      shapes: previousState.shapes,
+      history: previousState.history,
+      senderId: clientId,
+    })
+  }, [broadcast, clientId, pushHistory, userName])
+
+  const performRedo = useCallback(() => {
+    if (redoStackRef.current.length === 0) return
+    const nextState = redoStackRef.current.pop()!
+    undoStackRef.current.push({
+      shapes: [...shapesRef.current],
+      history: [...historyRef.current],
+    })
+    isUndoRedoRef.current = true
+    setShapes(nextState.shapes)
+    setHistory(nextState.history)
+    setCanUndo(true)
+    setCanRedo(redoStackRef.current.length > 0)
+    pushHistory(`${userName} redid last action`)
+    broadcast({
+      kind: 'undo-redo',
+      shapes: nextState.shapes,
+      history: nextState.history,
+      senderId: clientId,
+    })
+  }, [broadcast, clientId, pushHistory, userName])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        performUndo()
+      } else if (
+        ((event.ctrlKey || event.metaKey) && event.key === 'y') ||
+        ((event.ctrlKey || event.metaKey) && event.key === 'z' && event.shiftKey)
+      ) {
+        event.preventDefault()
+        performRedo()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [performUndo, performRedo])
+
   const commitShape = useCallback(
     (shape: Shape, description: string) => {
+      saveStateForUndo()
       const historyEntry = pushHistory(description)
       const normalizedShape = normalizeShape(shape)
       setShapes((prev) => [...prev, normalizedShape])
@@ -258,11 +360,12 @@ function App() {
         senderId: clientId,
       })
     },
-    [broadcast, clientId, pushHistory],
+    [broadcast, clientId, pushHistory, saveStateForUndo],
   )
 
   const applyShapeUpdate = useCallback(
     (updatedShape: Shape, description: string) => {
+      saveStateForUndo()
       const normalizedShape = normalizeShape(updatedShape)
       const historyEntry = pushHistory(description)
       setShapes((prev) =>
@@ -275,7 +378,7 @@ function App() {
         senderId: clientId,
       })
     },
-    [broadcast, clientId, pushHistory],
+    [broadcast, clientId, pushHistory, saveStateForUndo],
   )
 
   const commitPath = useCallback(
@@ -446,6 +549,7 @@ function App() {
 
   const clearBoard = () => {
     if (!shapes.length) return
+    saveStateForUndo()
     const historyEntry = pushHistory(`${userName} cleared the board`)
     setShapes([])
     broadcast({
@@ -622,11 +726,30 @@ function App() {
           <div className="control">
             <label>Active tool</label>
             <p className="active-tool">{activeToolLabel}</p>
-      </div>
+          </div>
+
+          <div className="undo-redo-controls">
+            <button
+              className="ghost-btn"
+              onClick={performUndo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+            >
+              ↶ Undo
+            </button>
+            <button
+              className="ghost-btn"
+              onClick={performRedo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Y)"
+            >
+              ↷ Redo
+            </button>
+          </div>
 
           <button className="danger-btn" onClick={clearBoard}>
             Clear board
-        </button>
+          </button>
         </aside>
 
         <div className="board-wrapper">
