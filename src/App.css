@@ -203,6 +203,14 @@
   font-weight: 500;
 }
 
+.table-cell-text {
+  font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  fill: #e2e8f0;
+  pointer-events: none;
+}
+
 .history-panel {
   gap: 1rem;
 }

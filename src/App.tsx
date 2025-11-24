@@ -36,6 +36,7 @@ type TableShape = BaseShape & {
   cellWidth: number
   cellHeight: number
   stroke: string
+  cells: string[][]
 }
 
 type Shape = PathShape | TextShape | TableShape
@@ -60,6 +61,12 @@ type ChannelMessage =
       kind: 'sync-state'
       shapes: Shape[]
       history: HistoryItem[]
+      senderId: string
+    }
+  | {
+      kind: 'update-shape'
+      shape: Shape
+      history: HistoryItem
       senderId: string
     }
 
@@ -104,6 +111,24 @@ const formatTime = (timestamp: number) =>
     second: '2-digit',
   }).format(timestamp)
 
+const ensureTableCells = (shape: TableShape): TableShape => {
+  const legacyCells = (shape as TableShape & { cells?: string[][] }).cells
+  const cells = Array.from({ length: shape.rows }, (_, rowIndex) => {
+    const existingRow = legacyCells?.[rowIndex] ?? []
+    return Array.from({ length: shape.cols }, (_, colIndex) => existingRow[colIndex] ?? '')
+  })
+  return { ...shape, cells }
+}
+
+const normalizeShape = (shape: Shape): Shape => {
+  if (shape.type === 'table') {
+    return ensureTableCells(shape)
+  }
+  return shape
+}
+
+const normalizeShapes = (shapes: Shape[]) => shapes.map(normalizeShape)
+
 function App() {
   const clientId = useMemo(() => randomId(), [])
 
@@ -118,7 +143,7 @@ function App() {
   const [strokeWidth, setStrokeWidth] = useState(4)
 
   const [shapes, setShapes] = useState<Shape[]>(() =>
-    loadFromStorage<Shape[]>(STORAGE_KEYS.shapes, []),
+    normalizeShapes(loadFromStorage<Shape[]>(STORAGE_KEYS.shapes, [])),
   )
   const [history, setHistory] = useState<HistoryItem[]>(() =>
     loadFromStorage<HistoryItem[]>(STORAGE_KEYS.history, []),
@@ -158,11 +183,19 @@ function App() {
 
       switch (payload.kind) {
         case 'add-shape':
-          setShapes((prev) => [...prev, payload.shape])
+          setShapes((prev) => [...prev, normalizeShape(payload.shape)])
           setHistory((prev) => [payload.history, ...prev])
           break
         case 'clear-board':
           setShapes([])
+          setHistory((prev) => [payload.history, ...prev])
+          break
+        case 'update-shape':
+          setShapes((prev) =>
+            prev.map((shape) =>
+              shape.id === payload.shape.id ? normalizeShape(payload.shape) : shape,
+            ),
+          )
           setHistory((prev) => [payload.history, ...prev])
           break
         case 'sync-request':
@@ -175,7 +208,7 @@ function App() {
           } satisfies ChannelMessage)
           break
         case 'sync-state':
-          setShapes(payload.shapes)
+          setShapes(normalizeShapes(payload.shapes))
           setHistory(payload.history)
           break
         default:
@@ -216,10 +249,28 @@ function App() {
   const commitShape = useCallback(
     (shape: Shape, description: string) => {
       const historyEntry = pushHistory(description)
-      setShapes((prev) => [...prev, shape])
+      const normalizedShape = normalizeShape(shape)
+      setShapes((prev) => [...prev, normalizedShape])
       broadcast({
         kind: 'add-shape',
-        shape,
+        shape: normalizedShape,
+        history: historyEntry,
+        senderId: clientId,
+      })
+    },
+    [broadcast, clientId, pushHistory],
+  )
+
+  const applyShapeUpdate = useCallback(
+    (updatedShape: Shape, description: string) => {
+      const normalizedShape = normalizeShape(updatedShape)
+      const historyEntry = pushHistory(description)
+      setShapes((prev) =>
+        prev.map((shape) => (shape.id === normalizedShape.id ? normalizedShape : shape)),
+      )
+      broadcast({
+        kind: 'update-shape',
+        shape: normalizedShape,
         history: historyEntry,
         senderId: clientId,
       })
@@ -242,6 +293,57 @@ function App() {
       commitShape(shape, `${userName} drew a stroke (${points.length} pts)`)
     },
     [color, commitShape, strokeWidth, userName],
+  )
+
+  const getTableCellAtPoint = useCallback(
+    (point: Point) => {
+      for (let index = shapes.length - 1; index >= 0; index -= 1) {
+        const shape = shapes[index]
+        if (shape.type !== 'table') continue
+        const normalizedTable = ensureTableCells(shape)
+        const width = normalizedTable.cols * normalizedTable.cellWidth
+        const height = normalizedTable.rows * normalizedTable.cellHeight
+        const withinX =
+          point.x >= normalizedTable.x && point.x <= normalizedTable.x + width
+        const withinY =
+          point.y >= normalizedTable.y && point.y <= normalizedTable.y + height
+        if (!withinX || !withinY) continue
+        const col = Math.floor((point.x - normalizedTable.x) / normalizedTable.cellWidth)
+        const row = Math.floor((point.y - normalizedTable.y) / normalizedTable.cellHeight)
+        if (
+          row < 0 ||
+          row >= normalizedTable.rows ||
+          col < 0 ||
+          col >= normalizedTable.cols
+        ) {
+          continue
+        }
+        return { shape: normalizedTable, row, col } as const
+      }
+      return null
+    },
+    [shapes],
+  )
+
+  const updateTableCell = useCallback(
+    (tableShape: TableShape, row: number, col: number, value: string) => {
+      const normalizedTable = ensureTableCells(tableShape)
+      const sanitizedValue = value.trim()
+      if (normalizedTable.cells[row]?.[col] === sanitizedValue) return
+      const updatedCells = normalizedTable.cells.map((cellRow, rowIndex) =>
+        rowIndex === row
+          ? cellRow.map((cellValue, colIndex) =>
+              colIndex === col ? sanitizedValue : cellValue,
+            )
+          : cellRow,
+      )
+      const updatedShape: TableShape = { ...normalizedTable, cells: updatedCells }
+      applyShapeUpdate(
+        updatedShape,
+        `${userName} updated cell R${row + 1}C${col + 1}`,
+      )
+    },
+    [applyShapeUpdate, userName],
   )
 
   const getRelativePoint = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -267,6 +369,16 @@ function App() {
     }
 
     if (tool === 'text') {
+      const tableCell = getTableCellAtPoint(point)
+      if (tableCell) {
+        const { shape, row, col } = tableCell
+        const currentValue = shape.cells[row][col] ?? ''
+        const nextValue = window.prompt('Text for this cell?', currentValue)
+        if (nextValue === null) return
+        updateTableCell(shape, row, col, nextValue)
+        return
+      }
+
       const text = window.prompt('Text to place on the board?')
       if (!text?.trim()) return
 
@@ -290,6 +402,8 @@ function App() {
       const cols = Number(window.prompt('How many columns? (1-12)', '4')) || 0
       if (!rows || !cols) return
 
+      const clampedRows = clamp(rows, 1, 12)
+      const clampedCols = clamp(cols, 1, 12)
       const shape: TableShape = {
         id: randomId(),
         type: 'table',
@@ -297,11 +411,14 @@ function App() {
         createdBy: userName,
         x: point.x,
         y: point.y,
-        rows: clamp(rows, 1, 12),
-        cols: clamp(cols, 1, 12),
+        rows: clampedRows,
+        cols: clampedCols,
         cellWidth: 80,
         cellHeight: 40,
         stroke: color,
+        cells: Array.from({ length: clampedRows }, () =>
+          Array.from({ length: clampedCols }, () => ''),
+        ),
       }
 
       commitShape(
@@ -393,6 +510,27 @@ function App() {
             opacity={0.6}
           />
         ))
+        const textNodes: React.ReactNode[] = []
+        for (let row = 0; row < shape.rows; row += 1) {
+          for (let col = 0; col < shape.cols; col += 1) {
+            const cellValue = shape.cells[row]?.[col]
+            if (!cellValue) continue
+            const cx = shape.x + col * shape.cellWidth + shape.cellWidth / 2
+            const cy = shape.y + row * shape.cellHeight + shape.cellHeight / 2 + 4
+            textNodes.push(
+              <text
+                key={`${shape.id}-cell-${row}-${col}`}
+                x={cx}
+                y={cy}
+                className="table-cell-text"
+                textAnchor="middle"
+                dominantBaseline="middle"
+              >
+                {cellValue}
+              </text>,
+            )
+          }
+        }
         return (
           <g key={shape.id} className="board-table">
             <rect
@@ -407,6 +545,7 @@ function App() {
             />
             {horizontal}
             {vertical}
+            {textNodes}
           </g>
         )
       }
