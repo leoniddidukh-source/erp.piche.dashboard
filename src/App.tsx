@@ -617,7 +617,6 @@ function App() {
             strokeLinecap="round"
             strokeLinejoin="round"
             fill="none"
-            opacity={0.85}
           />
         )
       case 'text':
@@ -779,6 +778,7 @@ function App() {
               max={12}
               value={strokeWidth}
               onChange={(event) => setStrokeWidth(Number(event.target.value))}
+              style={{ accentColor: color }}
             />
           </div>
 
