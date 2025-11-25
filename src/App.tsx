@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import './App.css'
 
-type Tool = 'pen' | 'text' | 'table' | 'move' | 'resize'
+type Tool = 'pen' | 'text' | 'table' | 'move' | 'resize' | 'eraser'
 type Theme = 'light' | 'dark'
 
 type Point = { x: number; y: number }
@@ -72,6 +72,12 @@ type ChannelMessage =
       senderId: string
     }
   | {
+      kind: 'delete-shape'
+      shapeId: string
+      history: HistoryItem
+      senderId: string
+    }
+  | {
       kind: 'undo-redo'
       shapes: Shape[]
       history: HistoryItem[]
@@ -99,6 +105,7 @@ const MAX_TEXT_SIZE = 120
 const MIN_TABLE_CELL = 20
 const MIN_RESIZE_DIMENSION = 16
 const MIN_PATH_DIMENSION = 4
+const ERASER_RADIUS = 18
 
 type ShapeBounds = {
   minX: number
@@ -244,6 +251,39 @@ const cloneShape = (shape: Shape): Shape => {
   }
 }
 
+const distanceSquared = (a: Point, b: Point) => {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return dx * dx + dy * dy
+}
+
+const isPointNearSegment = (point: Point, segmentStart: Point, segmentEnd: Point, threshold: number) => {
+  const lengthSquared = distanceSquared(segmentStart, segmentEnd)
+  if (lengthSquared === 0) {
+    return distanceSquared(point, segmentStart) <= threshold * threshold
+  }
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - segmentStart.x) * (segmentEnd.x - segmentStart.x) +
+        (point.y - segmentStart.y) * (segmentEnd.y - segmentStart.y)) /
+        lengthSquared,
+    ),
+  )
+  const projection = {
+    x: segmentStart.x + t * (segmentEnd.x - segmentStart.x),
+    y: segmentStart.y + t * (segmentEnd.y - segmentStart.y),
+  }
+  return distanceSquared(point, projection) <= threshold * threshold
+}
+
+const isPointInsideBounds = (point: Point, bounds: ShapeBounds) =>
+  point.x >= bounds.minX &&
+  point.x <= bounds.maxX &&
+  point.y >= bounds.minY &&
+  point.y <= bounds.maxY
+
 function App() {
   const clientId = useMemo(() => randomId(), [])
 
@@ -345,6 +385,10 @@ function App() {
               shape.id === payload.shape.id ? normalizeShape(payload.shape) : shape,
             ),
           )
+          setHistory((prev) => [payload.history, ...prev])
+          break
+        case 'delete-shape':
+          setShapes((prev) => prev.filter((shape) => shape.id !== payload.shapeId))
           setHistory((prev) => [payload.history, ...prev])
           break
         case 'sync-request':
@@ -617,6 +661,28 @@ function App() {
     [shapes],
   )
 
+  const findShapeAtPoint = useCallback(
+    (point: Point) => {
+      for (let index = shapesRef.current.length - 1; index >= 0; index -= 1) {
+        const shape = shapesRef.current[index]
+        if (shape.type === 'table' || shape.type === 'text') {
+          const bounds = getShapeBounds(shape)
+          if (isPointInsideBounds(point, bounds)) {
+            return shape
+          }
+        } else if (shape.type === 'path') {
+          for (let i = 0; i < shape.points.length - 1; i += 1) {
+            if (isPointNearSegment(point, shape.points[i], shape.points[i + 1], ERASER_RADIUS)) {
+              return shape
+            }
+          }
+        }
+      }
+      return null
+    },
+    [],
+  )
+
   const updateTableCell = useCallback(
     (tableShape: TableShape, row: number, col: number, value: string) => {
       const normalizedTable = ensureTableCells(tableShape)
@@ -661,6 +727,19 @@ function App() {
     if (tool === 'move' || tool === 'resize') return
     const point = getRelativePoint(event)
     if (!point) return
+
+    if (tool === 'eraser') {
+      const targetShape = findShapeAtPoint(point)
+      if (!targetShape) return
+      const description =
+        targetShape.type === 'text'
+          ? `${userName} erased text "${targetShape.text}"`
+          : targetShape.type === 'table'
+            ? `${userName} erased a ${targetShape.rows}x${targetShape.cols} table`
+            : `${userName} erased a stroke`
+      deleteShape(targetShape.id, description)
+      return
+    }
 
     if (tool === 'pen') {
       setTempPoints([point])
@@ -952,6 +1031,21 @@ function App() {
     })
   }
 
+  const deleteShape = useCallback(
+    (shapeId: string, description: string) => {
+      saveStateForUndo()
+      setShapes((prev) => prev.filter((shape) => shape.id !== shapeId))
+      const historyEntry = pushHistory(description)
+      broadcast({
+        kind: 'delete-shape',
+        shapeId,
+        history: historyEntry,
+        senderId: clientId,
+      })
+    },
+    [broadcast, clientId, pushHistory, saveStateForUndo],
+  )
+
   const renderResizeOverlay = (shape: Shape) => {
     if (tool !== 'resize') return null
     const bounds = getShapeBounds(shape)
@@ -1111,11 +1205,12 @@ function App() {
   }
 
   const activeToolLabel = {
-    pen: 'Drawing',
+    pen: 'Pencil',
     text: 'Text',
     table: 'Table',
     move: 'Move',
     resize: 'Resize',
+    eraser: 'Erase',
   }[tool]
 
   return (
@@ -1158,17 +1253,18 @@ function App() {
         <aside className="panel tool-panel">
           <p className="panel-title">Create</p>
           <div className="tool-grid">
-            {(['pen', 'text', 'table', 'move', 'resize'] as Tool[]).map((item) => (
+            {(['pen', 'text', 'table', 'move', 'resize', 'eraser'] as Tool[]).map((item) => (
               <button
                 key={item}
                 className={`tool-btn ${tool === item ? 'active' : ''}`}
                 onClick={() => setTool(item)}
               >
-                {item === 'pen' && '✏️ Stroke'}
+                {item === 'pen' && '✏️ Pencil'}
                 {item === 'text' && '📝 Text'}
                 {item === 'table' && '📊 Table'}
                 {item === 'move' && '🤚 Move'}
                 {item === 'resize' && '📐 Resize'}
+                {item === 'eraser' && '🧽 Eraser'}
               </button>
             ))}
           </div>
@@ -1183,7 +1279,7 @@ function App() {
           </div>
 
           <div className="control">
-            <label>Stroke width: {strokeWidth}px</label>
+            <label>Pencil width: {strokeWidth}px</label>
             <input
               type="range"
               min={2}
@@ -1232,7 +1328,7 @@ function App() {
             ref={boardRef}
             className={`board ${tool === 'move' ? 'move-mode' : ''} ${
               tool === 'resize' ? 'resize-mode' : ''
-            }`}
+            } ${tool === 'eraser' ? 'eraser-mode' : ''}`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}

@@ -4,12 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added resize feature">
-      <change afterPath="$PROJECT_DIR$/dist/assets/index-B6oLRnyW.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dist/assets/index-b7eknHYm.js" afterDir="false" />
+    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Updated download feature">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/assets/index--lCwkQXG.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/assets/index-CokqCmWs.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/assets/index-B6oLRnyW.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/assets/index-DOEbq1J8.js" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/App.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.tsx" afterDir="false" />
@@ -22,7 +20,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="main" />
+        <entry key="$PROJECT_DIR$" value="main-with-updates" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -37,7 +35,7 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    "git-widget-placeholder": "main-with-updates",
+    "git-widget-placeholder": "dashboard-module",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -63,7 +61,7 @@
       <option name="presentableId" value="Default" />
       <updated>1763994284560</updated>
       <workItem from="1763994285669" duration="2159000" />
-      <workItem from="1764056558512" duration="4359000" />
+      <workItem from="1764056558512" duration="7006000" />
     </task>
     <task id="LOCAL-00001" summary="Added scrolls">
       <option name="closed" value="true" />
@@ -129,7 +127,23 @@
       <option name="project" value="LOCAL" />
       <updated>1764060274965</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="Added resize feature">
+      <option name="closed" value="true" />
+      <created>1764061401137</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1764061401137</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Updated download feature">
+      <option name="closed" value="true" />
+      <created>1764062084410</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1764062084410</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -144,6 +158,7 @@
     <MESSAGE value="Fixed stroke line color bug" />
     <MESSAGE value="Added drag&amp;drop feature" />
     <MESSAGE value="Added resize feature" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added resize feature" />
+    <MESSAGE value="Updated download feature" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updated download feature" />
   </component>
 </project>

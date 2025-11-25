@@ -234,6 +234,12 @@
   cursor: default;
 }
 
+.board.eraser-mode {
+  cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%22%23ffffff%22 d=%22M3 15.5L10.5 8l5.5 5.5l-7.5 7.5H3z%22/%3E%3C/svg%3E')
+      4 20,
+    crosshair;
+}
+
 .movable-shape {
   cursor: grab;
 }
