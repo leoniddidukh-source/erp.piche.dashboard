@@ -230,12 +230,30 @@
   cursor: grabbing;
 }
 
+.board.resize-mode {
+  cursor: default;
+}
+
 .movable-shape {
   cursor: grab;
 }
 
 .movable-shape:active {
   cursor: grabbing;
+}
+
+.resize-outline {
+  stroke: var(--color-tool-active-border);
+  stroke-dasharray: 6;
+  fill: transparent;
+  pointer-events: none;
+}
+
+.resize-handle {
+  fill: var(--color-tool-active-bg);
+  stroke: var(--color-tool-active-border);
+  rx: 3px;
+  cursor: se-resize;
 }
 
 .board-canvas {
@@ -256,7 +274,6 @@
 
 .board-text {
   font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
-  font-size: 1.1rem;
   font-weight: 500;
 }
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import './App.css'
 
-type Tool = 'pen' | 'text' | 'table' | 'move'
+type Tool = 'pen' | 'text' | 'table' | 'move' | 'resize'
 type Theme = 'light' | 'dark'
 
 type Point = { x: number; y: number }
@@ -26,6 +26,7 @@ type TextShape = BaseShape & {
   y: number
   text: string
   color: string
+  fontSize: number
 }
 
 type TableShape = BaseShape & {
@@ -92,17 +93,37 @@ const randomId = () =>
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
 
-const getShapeBounds = (shape: Shape) => {
+const DEFAULT_FONT_SIZE = 18
+const MIN_TEXT_SIZE = 10
+const MAX_TEXT_SIZE = 120
+const MIN_TABLE_CELL = 20
+const MIN_RESIZE_DIMENSION = 16
+const MIN_PATH_DIMENSION = 4
+
+type ShapeBounds = {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+  width: number
+  height: number
+}
+
+const getShapeBounds = (shape: Shape): ShapeBounds => {
   switch (shape.type) {
-    case 'text':
+    case 'text': {
+      const charWidth = shape.fontSize * 0.6
+      const width = Math.max(charWidth * Math.max(shape.text.length, 1), shape.fontSize)
+      const height = shape.fontSize * 1.4
       return {
         minX: shape.x,
-        minY: shape.y,
-        maxX: shape.x,
+        minY: shape.y - height,
+        maxX: shape.x + width,
         maxY: shape.y,
-        width: 0,
-        height: 0,
+        width,
+        height,
       }
+    }
     case 'table': {
       const width = shape.cols * shape.cellWidth
       const height = shape.rows * shape.cellHeight
@@ -117,7 +138,14 @@ const getShapeBounds = (shape: Shape) => {
     }
     case 'path': {
       if (!shape.points.length) {
-        return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+        return {
+          minX: shape.points[0]?.x ?? 0,
+          minY: shape.points[0]?.y ?? 0,
+          maxX: shape.points[0]?.x ?? 0,
+          maxY: shape.points[0]?.y ?? 0,
+          width: MIN_PATH_DIMENSION,
+          height: MIN_PATH_DIMENSION,
+        }
       }
       const xs = shape.points.map((point) => point.x)
       const ys = shape.points.map((point) => point.y)
@@ -130,12 +158,12 @@ const getShapeBounds = (shape: Shape) => {
         minY,
         maxX,
         maxY,
-        width: Math.max(maxX - minX, 0),
-        height: Math.max(maxY - minY, 0),
+        width: Math.max(maxX - minX, MIN_PATH_DIMENSION),
+        height: Math.max(maxY - minY, MIN_PATH_DIMENSION),
       }
     }
     default:
-      return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+      return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: MIN_RESIZE_DIMENSION, height: MIN_RESIZE_DIMENSION }
   }
 }
 
@@ -189,10 +217,32 @@ const normalizeShape = (shape: Shape): Shape => {
   if (shape.type === 'table') {
     return ensureTableCells(shape)
   }
+  if (shape.type === 'text') {
+    return {
+      ...shape,
+      fontSize:
+        typeof shape.fontSize === 'number' && Number.isFinite(shape.fontSize)
+          ? shape.fontSize
+          : DEFAULT_FONT_SIZE,
+    }
+  }
   return shape
 }
 
 const normalizeShapes = (shapes: Shape[]) => shapes.map(normalizeShape)
+
+const cloneShape = (shape: Shape): Shape => {
+  switch (shape.type) {
+    case 'path':
+      return { ...shape, points: shape.points.map((point) => ({ ...point })) }
+    case 'table':
+      return { ...shape }
+    case 'text':
+      return { ...shape }
+    default:
+      return shape
+  }
+}
 
 function App() {
   const clientId = useMemo(() => randomId(), [])
@@ -230,6 +280,12 @@ function App() {
     type: 'text' | 'table' | 'path'
     offset: Point
     size: { width: number; height: number }
+  } | null>(null)
+  const resizingShapeRef = useRef<{
+    id: string
+    originalShape: Shape
+    startPointer: Point
+    startBounds: ShapeBounds
   } | null>(null)
 
   useEffect(() => {
@@ -569,7 +625,7 @@ function App() {
     getPointerPosition(event.clientX, event.clientY)?.point ?? null
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (tool === 'move') return
+    if (tool === 'move' || tool === 'resize') return
     const point = getRelativePoint(event)
     if (!point) return
 
@@ -604,6 +660,7 @@ function App() {
         y: point.y,
         text: text.trim(),
         color,
+        fontSize: DEFAULT_FONT_SIZE,
       }
 
       commitShape(shape, `${userName} added text "${shape.text}"`)
@@ -652,17 +709,40 @@ function App() {
       if (draggingShapeRef.current) return
       saveStateForUndo()
       const bounds = getShapeBounds(shape)
+      const anchor =
+        shape.type === 'text'
+          ? { x: shape.x, y: shape.y }
+          : { x: bounds.minX, y: bounds.minY }
       draggingShapeRef.current = {
         id: shape.id,
         type: shape.type,
         offset: {
-          x: position.point.x - bounds.minX,
-          y: position.point.y - bounds.minY,
+          x: position.point.x - anchor.x,
+          y: position.point.y - anchor.y,
         },
         size: {
           width: bounds.width,
           height: bounds.height,
         },
+      }
+    },
+    [getPointerPosition, saveStateForUndo, tool],
+  )
+
+  const handleResizePointerDown = useCallback(
+    (event: React.PointerEvent<Element>, shape: Shape) => {
+      if (tool !== 'resize') return
+      if (resizingShapeRef.current) return
+      const position = getPointerPosition(event.clientX, event.clientY)
+      if (!position) return
+      event.stopPropagation()
+      event.preventDefault()
+      saveStateForUndo()
+      resizingShapeRef.current = {
+        id: shape.id,
+        originalShape: cloneShape(shape),
+        startPointer: position.point,
+        startBounds: getShapeBounds(shape),
       }
     },
     [getPointerPosition, saveStateForUndo, tool],
@@ -685,7 +765,80 @@ function App() {
     applyShapeUpdate(target, description, { skipUndoSnapshot: true })
   }, [applyShapeUpdate, userName])
 
+  const finalizeShapeResize = useCallback(() => {
+    const resizeState = resizingShapeRef.current
+    if (!resizeState) return
+    const target = shapesRef.current.find((shape) => shape.id === resizeState.id)
+    resizingShapeRef.current = null
+    if (!target) return
+    const description =
+      target.type === 'text'
+        ? `${userName} resized text "${target.text}"`
+        : target.type === 'table'
+          ? `${userName} resized ${target.rows}x${target.cols} table`
+          : `${userName} resized a stroke`
+    applyShapeUpdate(target, description, { skipUndoSnapshot: true })
+  }, [applyShapeUpdate, userName])
+
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (resizingShapeRef.current) {
+      const position = getPointerPosition(event.clientX, event.clientY)
+      if (!position) return
+      const resizeState = resizingShapeRef.current
+      const deltaX = position.point.x - resizeState.startPointer.x
+      const deltaY = position.point.y - resizeState.startPointer.y
+      const nextWidth = Math.max(
+        resizeState.startBounds.width + deltaX,
+        MIN_RESIZE_DIMENSION,
+      )
+      const nextHeight = Math.max(
+        resizeState.startBounds.height + deltaY,
+        MIN_RESIZE_DIMENSION,
+      )
+      const baseWidth = Math.max(resizeState.startBounds.width, 1)
+      const baseHeight = Math.max(resizeState.startBounds.height, 1)
+      const scaleX = nextWidth / baseWidth
+      const scaleY = nextHeight / baseHeight
+      setShapes((prev) =>
+        prev.map((shape) => {
+          if (shape.id !== resizeState.id) return shape
+          const original = resizeState.originalShape
+          if (original.type === 'table') {
+            return {
+              ...shape,
+              cellWidth: Math.max(original.cellWidth * scaleX, MIN_TABLE_CELL),
+              cellHeight: Math.max(original.cellHeight * scaleY, MIN_TABLE_CELL),
+            }
+          }
+          if (original.type === 'text') {
+            const scale = Math.max(scaleX, scaleY)
+            return {
+              ...shape,
+              fontSize: clamp(original.fontSize * scale, MIN_TEXT_SIZE, MAX_TEXT_SIZE),
+            }
+          }
+          if (original.type === 'path') {
+            const minX = resizeState.startBounds.minX
+            const minY = resizeState.startBounds.minY
+            const scaledPoints = original.points.map((point) => ({
+              x: clamp(
+                minX + (point.x - minX) * scaleX,
+                0,
+                position.bounds.width,
+              ),
+              y: clamp(
+                minY + (point.y - minY) * scaleY,
+                0,
+                position.bounds.height,
+              ),
+            }))
+            return { ...shape, points: scaledPoints }
+          }
+          return shape
+        }),
+      )
+      return
+    }
     if (draggingShapeRef.current) {
       const position = getPointerPosition(event.clientX, event.clientY)
       if (!position) return
@@ -738,6 +891,10 @@ function App() {
   }
 
   const handlePointerUp = () => {
+    if (resizingShapeRef.current) {
+      finalizeShapeResize()
+      return
+    }
     if (draggingShapeRef.current) {
       finalizeShapeDrag()
       return
@@ -762,12 +919,43 @@ function App() {
     })
   }
 
+  const renderResizeOverlay = (shape: Shape) => {
+    if (tool !== 'resize') return null
+    const bounds = getShapeBounds(shape)
+    const handleSize = 14
+    const outlineWidth = Math.max(bounds.width, MIN_RESIZE_DIMENSION)
+    const outlineHeight = Math.max(bounds.height, MIN_RESIZE_DIMENSION)
+    const outlineX = bounds.minX
+    const outlineY = bounds.minY
+    return (
+      <>
+        <rect
+          className="resize-outline"
+          x={outlineX}
+          y={outlineY}
+          width={outlineWidth}
+          height={outlineHeight}
+          pointerEvents="none"
+        />
+        <rect
+          className="resize-handle"
+          x={outlineX + outlineWidth - handleSize}
+          y={outlineY + outlineHeight - handleSize}
+          width={handleSize}
+          height={handleSize}
+          onPointerDown={(event) => handleResizePointerDown(event, shape)}
+        />
+      </>
+    )
+  }
+
   const renderShape = (shape: Shape) => {
+    let node: React.ReactNode = null
+
     switch (shape.type) {
       case 'path':
-        return (
+        node = (
           <polyline
-            key={shape.id}
             className={`path-stroke ${tool === 'move' ? 'movable-shape' : ''}`}
             points={shape.points.map((p) => `${p.x},${p.y}`).join(' ')}
             stroke={shape.stroke}
@@ -782,13 +970,14 @@ function App() {
             }
           />
         )
+        break
       case 'text':
-        return (
+        node = (
           <text
-            key={shape.id}
             x={shape.x}
             y={shape.y}
             fill={shape.color}
+            fontSize={shape.fontSize}
             className={`board-text ${tool === 'move' ? 'movable-shape' : ''}`}
             onPointerDown={
               tool === 'move'
@@ -799,12 +988,13 @@ function App() {
             {shape.text}
           </text>
         )
+        break
       case 'table': {
         const width = shape.cols * shape.cellWidth
         const height = shape.rows * shape.cellHeight
         const horizontal = Array.from({ length: shape.rows - 1 }, (_, row) => (
           <line
-            key={`${shape.id}-h-${row}`}
+            key={`h-${row}`}
             x1={shape.x}
             y1={shape.y + shape.cellHeight * (row + 1)}
             x2={shape.x + width}
@@ -816,7 +1006,7 @@ function App() {
         ))
         const vertical = Array.from({ length: shape.cols - 1 }, (_, col) => (
           <line
-            key={`${shape.id}-v-${col}`}
+            key={`v-${col}`}
             x1={shape.x + shape.cellWidth * (col + 1)}
             y1={shape.y}
             x2={shape.x + shape.cellWidth * (col + 1)}
@@ -835,7 +1025,7 @@ function App() {
             const cy = shape.y + row * shape.cellHeight + shape.cellHeight / 2 + 4
             textNodes.push(
               <text
-                key={`${shape.id}-cell-${row}-${col}`}
+                key={`cell-${row}-${col}`}
                 x={cx}
                 y={cy}
                 className="table-cell-text"
@@ -847,9 +1037,8 @@ function App() {
             )
           }
         }
-        return (
+        node = (
           <g
-            key={shape.id}
             className={`board-table ${tool === 'move' ? 'movable-shape' : ''}`}
             onPointerDown={
               tool === 'move'
@@ -872,10 +1061,20 @@ function App() {
             {textNodes}
           </g>
         )
+        break
       }
       default:
-        return null
+        node = null
     }
+
+    if (!node) return null
+
+    return (
+      <g key={shape.id}>
+        {node}
+        {renderResizeOverlay(shape)}
+      </g>
+    )
   }
 
   const activeToolLabel = {
@@ -883,6 +1082,7 @@ function App() {
     text: 'Text',
     table: 'Table',
     move: 'Move',
+    resize: 'Resize',
   }[tool]
 
   return (
@@ -925,7 +1125,7 @@ function App() {
         <aside className="panel tool-panel">
           <p className="panel-title">Create</p>
           <div className="tool-grid">
-            {(['pen', 'text', 'table', 'move'] as Tool[]).map((item) => (
+            {(['pen', 'text', 'table', 'move', 'resize'] as Tool[]).map((item) => (
               <button
                 key={item}
                 className={`tool-btn ${tool === item ? 'active' : ''}`}
@@ -935,6 +1135,7 @@ function App() {
                 {item === 'text' && '📝 Text'}
                 {item === 'table' && '📊 Table'}
                 {item === 'move' && '🤚 Move'}
+                {item === 'resize' && '📐 Resize'}
               </button>
             ))}
           </div>
@@ -996,7 +1197,9 @@ function App() {
         <div className="board-wrapper">
           <div
             ref={boardRef}
-            className={`board ${tool === 'move' ? 'move-mode' : ''}`}
+            className={`board ${tool === 'move' ? 'move-mode' : ''} ${
+              tool === 'resize' ? 'resize-mode' : ''
+            }`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
