@@ -130,9 +130,12 @@ type ShapeBounds = {
 const getShapeBounds = (shape: Shape): ShapeBounds => {
   switch (shape.type) {
     case 'text': {
+      const lines = shape.text.split('\n')
       const charWidth = shape.fontSize * 0.6
-      const width = Math.max(charWidth * Math.max(shape.text.length, 1), shape.fontSize)
-      const height = shape.fontSize * 1.4
+      const lineHeight = shape.fontSize * 1.2
+      const maxLineLength = Math.max(...lines.map((line) => line.length), 1)
+      const width = Math.max(charWidth * maxLineLength, shape.fontSize)
+      const height = lineHeight * lines.length
       return {
         minX: shape.x,
         minY: shape.y - height,
@@ -398,6 +401,14 @@ function App() {
       })
     }
   }, [textEditor, tool])
+
+  useEffect(() => {
+    if (textEditor && textInputRef.current) {
+      const textarea = textInputRef.current
+      textarea.style.height = 'auto'
+      textarea.style.height = `${Math.max(textarea.scrollHeight, 32)}px`
+    }
+  }, [textEditor?.value])
 
   useEffect(() => {
     if (tool !== 'text') {
@@ -1268,7 +1279,9 @@ function App() {
           />
         )
         break
-      case 'text':
+      case 'text': {
+        const lines = shape.text.split('\n')
+        const lineHeight = shape.fontSize * 1.2
         node = (
           <text
             x={shape.x}
@@ -1283,9 +1296,15 @@ function App() {
                 : undefined
             }
           >
-            {shape.text}
+            {lines.map((line, index) => (
+              <tspan key={index} x={shape.x} dy={index === 0 ? 0 : lineHeight}>
+                {line}
+              </tspan>
+            ))}
           </text>
         )
+        break
+      }
         break
       case 'table': {
         const width = shape.cols * shape.cellWidth
