@@ -392,25 +392,58 @@ function App() {
 
   const handleDownloadResult = useCallback(() => {
     if (typeof window === 'undefined') return
-    const payload = {
-      generatedAt: new Date().toISOString(),
-      generatedBy: userName,
-      shapes: shapesRef.current,
-      history: historyRef.current,
+    const boardElement = boardRef.current
+    if (!boardElement) return
+    const svgElement = boardElement.querySelector('svg')
+    if (!svgElement) return
+    const width = Math.max(Math.floor(boardElement.clientWidth), 1)
+    const height = Math.max(Math.floor(boardElement.clientHeight), 1)
+    const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement
+    clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    clonedSvg.setAttribute('width', String(width))
+    clonedSvg.setAttribute('height', String(height))
+    clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`)
+    const serializer = new XMLSerializer()
+    const svgString = serializer.serializeToString(clonedSvg)
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
+    const svgUrl = URL.createObjectURL(svgBlob)
+    const image = new Image()
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+      if (!context) {
+        URL.revokeObjectURL(svgUrl)
+        return
+      }
+      const rootStyles = getComputedStyle(document.documentElement)
+      const boardBg = rootStyles.getPropertyValue('--color-board-bg')?.trim() || '#0b1121'
+      context.fillStyle = boardBg
+      context.fillRect(0, 0, width, height)
+      context.drawImage(image, 0, 0, width, height)
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          URL.revokeObjectURL(svgUrl)
+          return
+        }
+        const pngUrl = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        link.href = pngUrl
+        link.download = `whiteboard-${timestamp}.png`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(pngUrl)
+        URL.revokeObjectURL(svgUrl)
+      }, 'image/png')
     }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    link.href = url
-    link.download = `whiteboard-${timestamp}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }, [userName])
+    image.onerror = () => {
+      URL.revokeObjectURL(svgUrl)
+    }
+    image.src = svgUrl
+  }, [])
 
   const saveStateForUndo = useCallback(() => {
     if (isUndoRedoRef.current) {
@@ -1186,7 +1219,7 @@ function App() {
           </div>
 
           <button className="primary-btn" type="button" onClick={handleDownloadResult}>
-            ⬇ Download result
+            ⬇ Download PNG
           </button>
 
           <button className="danger-btn" onClick={clearBoard}>
