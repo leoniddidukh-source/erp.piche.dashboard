@@ -202,7 +202,6 @@
   height: 200%;
   min-width: 100%;
   min-height: 100%;
-  cursor: crosshair;
   background-image: repeating-linear-gradient(
       0deg,
       var(--color-board-grid),
@@ -217,6 +216,26 @@
       transparent 1px,
       transparent 40px
     );
+}
+
+.board {
+  cursor: crosshair;
+}
+
+.board.move-mode {
+  cursor: grab;
+}
+
+.board.move-mode:active {
+  cursor: grabbing;
+}
+
+.movable-shape {
+  cursor: grab;
+}
+
+.movable-shape:active {
+  cursor: grabbing;
 }
 
 .board-canvas {

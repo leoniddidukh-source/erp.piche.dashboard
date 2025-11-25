@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import './App.css'
 
-type Tool = 'pen' | 'text' | 'table'
+type Tool = 'pen' | 'text' | 'table' | 'move'
 type Theme = 'light' | 'dark'
 
 type Point = { x: number; y: number }
@@ -92,6 +92,53 @@ const randomId = () =>
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
 
+const getShapeBounds = (shape: Shape) => {
+  switch (shape.type) {
+    case 'text':
+      return {
+        minX: shape.x,
+        minY: shape.y,
+        maxX: shape.x,
+        maxY: shape.y,
+        width: 0,
+        height: 0,
+      }
+    case 'table': {
+      const width = shape.cols * shape.cellWidth
+      const height = shape.rows * shape.cellHeight
+      return {
+        minX: shape.x,
+        minY: shape.y,
+        maxX: shape.x + width,
+        maxY: shape.y + height,
+        width,
+        height,
+      }
+    }
+    case 'path': {
+      if (!shape.points.length) {
+        return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+      }
+      const xs = shape.points.map((point) => point.x)
+      const ys = shape.points.map((point) => point.y)
+      const minX = Math.min(...xs)
+      const maxX = Math.max(...xs)
+      const minY = Math.min(...ys)
+      const maxY = Math.max(...ys)
+      return {
+        minX,
+        minY,
+        maxX,
+        maxY,
+        width: Math.max(maxX - minX, 0),
+        height: Math.max(maxY - minY, 0),
+      }
+    }
+    default:
+      return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+  }
+}
+
 const getPreferredTheme = (): Theme => {
   if (typeof window === 'undefined') return 'dark'
   const storedTheme = loadFromStorage<Theme | null>(STORAGE_KEYS.theme, null)
@@ -178,6 +225,12 @@ function App() {
   const undoStackRef = useRef<Array<{ shapes: Shape[]; history: HistoryItem[] }>>([])
   const redoStackRef = useRef<Array<{ shapes: Shape[]; history: HistoryItem[] }>>([])
   const isUndoRedoRef = useRef(false)
+  const draggingShapeRef = useRef<{
+    id: string
+    type: 'text' | 'table' | 'path'
+    offset: Point
+    size: { width: number; height: number }
+  } | null>(null)
 
   useEffect(() => {
     shapesRef.current = shapes
@@ -409,8 +462,10 @@ function App() {
   )
 
   const applyShapeUpdate = useCallback(
-    (updatedShape: Shape, description: string) => {
-      saveStateForUndo()
+    (updatedShape: Shape, description: string, options?: { skipUndoSnapshot?: boolean }) => {
+      if (!options?.skipUndoSnapshot) {
+        saveStateForUndo()
+      }
       const normalizedShape = normalizeShape(updatedShape)
       const historyEntry = pushHistory(description)
       setShapes((prev) =>
@@ -494,17 +549,27 @@ function App() {
     [applyShapeUpdate, userName],
   )
 
-  const getRelativePoint = (event: React.PointerEvent<HTMLDivElement>) => {
+  const getPointerPosition = useCallback((clientX: number, clientY: number) => {
     const board = boardRef.current
     if (!board) return null
     const rect = board.getBoundingClientRect()
     return {
-      x: clamp(event.clientX - rect.left, 0, rect.width),
-      y: clamp(event.clientY - rect.top, 0, rect.height),
+      point: {
+        x: clamp(clientX - rect.left, 0, rect.width),
+        y: clamp(clientY - rect.top, 0, rect.height),
+      },
+      bounds: {
+        width: rect.width,
+        height: rect.height,
+      },
     }
-  }
+  }, [])
+
+  const getRelativePoint = (event: React.PointerEvent<Element>) =>
+    getPointerPosition(event.clientX, event.clientY)?.point ?? null
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (tool === 'move') return
     const point = getRelativePoint(event)
     if (!point) return
 
@@ -576,7 +641,96 @@ function App() {
     }
   }
 
+  const handleShapePointerDown = useCallback(
+    (event: React.PointerEvent<Element>, shape: Shape) => {
+      if (tool !== 'move') return
+      if (shape.type !== 'text' && shape.type !== 'table' && shape.type !== 'path') return
+      const position = getPointerPosition(event.clientX, event.clientY)
+      if (!position) return
+      event.stopPropagation()
+      event.preventDefault()
+      if (draggingShapeRef.current) return
+      saveStateForUndo()
+      const bounds = getShapeBounds(shape)
+      draggingShapeRef.current = {
+        id: shape.id,
+        type: shape.type,
+        offset: {
+          x: position.point.x - bounds.minX,
+          y: position.point.y - bounds.minY,
+        },
+        size: {
+          width: bounds.width,
+          height: bounds.height,
+        },
+      }
+    },
+    [getPointerPosition, saveStateForUndo, tool],
+  )
+
+  const finalizeShapeDrag = useCallback(() => {
+    const drag = draggingShapeRef.current
+    if (!drag) return
+    const target = shapesRef.current.find((shape) => shape.id === drag.id)
+    draggingShapeRef.current = null
+    if (!target || (target.type !== 'text' && target.type !== 'table' && target.type !== 'path')) {
+      return
+    }
+    const description =
+      target.type === 'text'
+        ? `${userName} moved text "${target.text}"`
+        : target.type === 'table'
+          ? `${userName} moved ${target.rows}x${target.cols} table`
+          : `${userName} moved a stroke`
+    applyShapeUpdate(target, description, { skipUndoSnapshot: true })
+  }, [applyShapeUpdate, userName])
+
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (draggingShapeRef.current) {
+      const position = getPointerPosition(event.clientX, event.clientY)
+      if (!position) return
+      const { id, size } = draggingShapeRef.current
+      const offset = draggingShapeRef.current.offset
+      const { point, bounds } = position
+      setShapes((prev) =>
+        prev.map((shape) => {
+          if (shape.id !== id) return shape
+          const nextX = point.x - offset.x
+          const nextY = point.y - offset.y
+          if (shape.type === 'table') {
+            const tableWidth = shape.cols * shape.cellWidth
+            const tableHeight = shape.rows * shape.cellHeight
+            return {
+              ...shape,
+              x: clamp(nextX, 0, Math.max(bounds.width - tableWidth, 0)),
+              y: clamp(nextY, 0, Math.max(bounds.height - tableHeight, 0)),
+            }
+          }
+          if (shape.type === 'text') {
+            return {
+              ...shape,
+              x: clamp(nextX, 0, bounds.width),
+              y: clamp(nextY, 0, bounds.height),
+            }
+          }
+          if (shape.type === 'path') {
+            const targetMinX = clamp(nextX, 0, Math.max(bounds.width - size.width, 0))
+            const targetMinY = clamp(nextY, 0, Math.max(bounds.height - size.height, 0))
+            const currentBounds = getShapeBounds(shape)
+            const deltaX = targetMinX - currentBounds.minX
+            const deltaY = targetMinY - currentBounds.minY
+            if (!deltaX && !deltaY) return shape
+            const movedPoints = shape.points.map((pt) => ({
+              x: clamp(pt.x + deltaX, 0, bounds.width),
+              y: clamp(pt.y + deltaY, 0, bounds.height),
+            }))
+            return { ...shape, points: movedPoints }
+          }
+          return shape
+        }),
+      )
+      return
+    }
     if (!isDrawing || tool !== 'pen') return
     const point = getRelativePoint(event)
     if (!point) return
@@ -584,6 +738,10 @@ function App() {
   }
 
   const handlePointerUp = () => {
+    if (draggingShapeRef.current) {
+      finalizeShapeDrag()
+      return
+    }
     if (!isDrawing) return
     if (tempPoints.length >= 2) {
       commitPath(tempPoints)
@@ -610,13 +768,18 @@ function App() {
         return (
           <polyline
             key={shape.id}
-            className="path-stroke"
+            className={`path-stroke ${tool === 'move' ? 'movable-shape' : ''}`}
             points={shape.points.map((p) => `${p.x},${p.y}`).join(' ')}
             stroke={shape.stroke}
             strokeWidth={shape.strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
             fill="none"
+            onPointerDown={
+              tool === 'move'
+                ? (event) => handleShapePointerDown(event, shape)
+                : undefined
+            }
           />
         )
       case 'text':
@@ -626,7 +789,12 @@ function App() {
             x={shape.x}
             y={shape.y}
             fill={shape.color}
-            className="board-text"
+            className={`board-text ${tool === 'move' ? 'movable-shape' : ''}`}
+            onPointerDown={
+              tool === 'move'
+                ? (event) => handleShapePointerDown(event, shape)
+                : undefined
+            }
           >
             {shape.text}
           </text>
@@ -680,7 +848,15 @@ function App() {
           }
         }
         return (
-          <g key={shape.id} className="board-table">
+          <g
+            key={shape.id}
+            className={`board-table ${tool === 'move' ? 'movable-shape' : ''}`}
+            onPointerDown={
+              tool === 'move'
+                ? (event) => handleShapePointerDown(event, shape)
+                : undefined
+            }
+          >
             <rect
               x={shape.x}
               y={shape.y}
@@ -706,6 +882,7 @@ function App() {
     pen: 'Drawing',
     text: 'Text',
     table: 'Table',
+    move: 'Move',
   }[tool]
 
   return (
@@ -748,7 +925,7 @@ function App() {
         <aside className="panel tool-panel">
           <p className="panel-title">Create</p>
           <div className="tool-grid">
-            {(['pen', 'text', 'table'] as Tool[]).map((item) => (
+            {(['pen', 'text', 'table', 'move'] as Tool[]).map((item) => (
               <button
                 key={item}
                 className={`tool-btn ${tool === item ? 'active' : ''}`}
@@ -757,6 +934,7 @@ function App() {
                 {item === 'pen' && '✏️ Stroke'}
                 {item === 'text' && '📝 Text'}
                 {item === 'table' && '📊 Table'}
+                {item === 'move' && '🤚 Move'}
               </button>
             ))}
           </div>
@@ -818,7 +996,7 @@ function App() {
         <div className="board-wrapper">
           <div
             ref={boardRef}
-            className="board"
+            className={`board ${tool === 'move' ? 'move-mode' : ''}`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
