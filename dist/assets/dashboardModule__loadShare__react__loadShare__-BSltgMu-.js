@@ -1,0 +1,1 @@
+import{d as o,a as r}from"./dashboardModule__mf_v__runtimeInit__mf_v__-DGG8Ucgk.js";const{loadShare:a}=r,{initPromise:t}=o,_=t.then(e=>a("react",{customShareInfo:{shareConfig:{singleton:!0,strictVersion:!1,requiredVersion:"^19.2.0"}}})),s=await _.then(e=>e());var d=s;export{d};

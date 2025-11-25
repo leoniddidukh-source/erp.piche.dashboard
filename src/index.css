@@ -3,12 +3,70 @@
     BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #e2e8f0;
-  background-color: #020617;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light Theme Variables */
+:root[data-theme='light'] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-hover: #e2e8f0;
+  --bg-panel: rgba(255, 255, 255, 0.8);
+  --bg-board: #f8fafc;
+  --bg-board-wrapper: #ffffff;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-muted: #94a3b8;
+  
+  --border-color: rgba(148, 163, 184, 0.3);
+  --border-light: rgba(148, 163, 184, 0.15);
+  --border-subtle: rgba(148, 163, 184, 0.08);
+  
+  --accent-color: #0ea5e9;
+  --accent-hover: #0284c7;
+  --accent-bg: rgba(14, 165, 233, 0.1);
+  
+  --gradient-start: #f8fafc;
+  --gradient-end: #e2e8f0;
+  
+  --shadow-color: rgba(15, 23, 42, 0.1);
+  --table-fill: rgba(241, 245, 249, 0.3);
+}
+
+/* Dark Theme Variables */
+:root[data-theme='dark'] {
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --bg-hover: #334155;
+  --bg-panel: rgba(15, 23, 42, 0.6);
+  --bg-board: #0b1121;
+  --bg-board-wrapper: #0b1121;
+  
+  --text-primary: #e2e8f0;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-muted: #64748b;
+  
+  --border-color: rgba(148, 163, 184, 0.2);
+  --border-light: rgba(148, 163, 184, 0.15);
+  --border-subtle: rgba(148, 163, 184, 0.08);
+  
+  --accent-color: #22d3ee;
+  --accent-hover: #06b6d4;
+  --accent-bg: rgba(34, 211, 238, 0.2);
+  
+  --gradient-start: #0f172a;
+  --gradient-end: #020617;
+  
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --table-fill: rgba(15, 23, 42, 0.25);
 }
 
 *,
@@ -20,7 +78,9 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #020617;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 300ms ease, color 300ms ease;
 }
 
 #root {

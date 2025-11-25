@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
+import { ThemeToggle } from './components/ThemeToggle'
+import { useTheme } from './contexts/ThemeContext'
 import './App.css'
 
 type Tool = 'pen' | 'text' | 'table'
@@ -45,6 +47,7 @@ type HistoryItem = {
   timestamp: number
   user: string
   description: string
+  shapeId?: string // Link to shape if this history item represents a shape addition
 }
 
 type ChannelMessage =
@@ -62,6 +65,7 @@ type ChannelMessage =
       history: HistoryItem[]
       senderId: string
     }
+  | { kind: 'remove-history'; historyId: string; shapeId?: string; senderId: string }
 
 const STORAGE_KEYS = {
   shapes: 'dashboard.whiteboard.shapes',
@@ -105,6 +109,7 @@ const formatTime = (timestamp: number) =>
   }).format(timestamp)
 
 function App() {
+  const { theme } = useTheme()
   const clientId = useMemo(() => randomId(), [])
 
   const [userName, setUserName] = useState(() => {
@@ -126,8 +131,13 @@ function App() {
 
   const [isDrawing, setIsDrawing] = useState(false)
   const [tempPoints, setTempPoints] = useState<Point[]>([])
+  const [textEditing, setTextEditing] = useState<{
+    position: Point
+    value: string
+  } | null>(null)
 
   const boardRef = useRef<HTMLDivElement | null>(null)
+  const textInputRef = useRef<HTMLInputElement | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const shapesRef = useRef<Shape[]>(shapes)
   const historyRef = useRef<HistoryItem[]>(history)
@@ -178,6 +188,13 @@ function App() {
           setShapes(payload.shapes)
           setHistory(payload.history)
           break
+        case 'remove-history':
+          setHistory((prev) => prev.filter((item) => item.id !== payload.historyId))
+          // If a shape is associated with this history item, remove it too
+          if (payload.shapeId) {
+            setShapes((prev) => prev.filter((shape) => shape.id !== payload.shapeId))
+          }
+          break
         default:
           break
       }
@@ -200,12 +217,13 @@ function App() {
   )
 
   const pushHistory = useCallback(
-    (description: string, userOverride?: string) => {
+    (description: string, userOverride?: string, shapeId?: string) => {
       const entry: HistoryItem = {
         id: randomId(),
         timestamp: Date.now(),
         user: userOverride ?? userName,
         description,
+        shapeId,
       }
       setHistory((prev) => [entry, ...prev].slice(0, 250))
       return entry
@@ -215,7 +233,7 @@ function App() {
 
   const commitShape = useCallback(
     (shape: Shape, description: string) => {
-      const historyEntry = pushHistory(description)
+      const historyEntry = pushHistory(description, undefined, shape.id)
       setShapes((prev) => [...prev, shape])
       broadcast({
         kind: 'add-shape',
@@ -225,6 +243,55 @@ function App() {
       })
     },
     [broadcast, clientId, pushHistory],
+  )
+
+  const commitText = useCallback(
+    (text: string, position: Point) => {
+      if (!text.trim()) {
+        setTextEditing(null)
+        return
+      }
+
+      const shape: TextShape = {
+        id: randomId(),
+        type: 'text',
+        createdAt: Date.now(),
+        createdBy: userName,
+        x: position.x,
+        y: position.y,
+        text: text.trim(),
+        color,
+      }
+
+      commitShape(shape, `${userName} added text "${shape.text}"`)
+      setTextEditing(null)
+    },
+    [color, commitShape, userName],
+  )
+
+  const cancelTextEditing = useCallback(() => {
+    setTextEditing(null)
+  }, [])
+
+  useEffect(() => {
+    if (textEditing && textInputRef.current) {
+      textInputRef.current.focus()
+    }
+  }, [textEditing])
+
+  const handleToolChange = useCallback(
+    (newTool: Tool) => {
+      // If switching away from text tool and text is being edited, commit or cancel it
+      if (tool === 'text' && newTool !== 'text' && textEditing) {
+        if (textEditing.value.trim()) {
+          commitText(textEditing.value, textEditing.position)
+        } else {
+          cancelTextEditing()
+        }
+      }
+      setTool(newTool)
+    },
+    [tool, textEditing, commitText, cancelTextEditing],
   )
 
   const commitPath = useCallback(
@@ -255,8 +322,25 @@ function App() {
   }
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    // If clicking on the text input itself, don't handle it
+    if ((event.target as HTMLElement).classList.contains('board-text-input')) {
+      return
+    }
+
     const point = getRelativePoint(event)
     if (!point) return
+
+    // If text is being edited, commit or cancel it first, then don't start new action
+    if (textEditing) {
+      if (textEditing.value.trim()) {
+        commitText(textEditing.value, textEditing.position)
+      } else {
+        cancelTextEditing()
+      }
+      // Don't start new action on the same click
+      event.preventDefault()
+      return
+    }
 
     if (tool === 'pen') {
       setTempPoints([point])
@@ -267,21 +351,11 @@ function App() {
     }
 
     if (tool === 'text') {
-      const text = window.prompt('Text to place on the board?')
-      if (!text?.trim()) return
-
-      const shape: TextShape = {
-        id: randomId(),
-        type: 'text',
-        createdAt: Date.now(),
-        createdBy: userName,
-        x: point.x,
-        y: point.y,
-        text: text.trim(),
-        color,
-      }
-
-      commitShape(shape, `${userName} added text "${shape.text}"`)
+      setTextEditing({
+        position: point,
+        value: '',
+      })
+      event.preventDefault()
       return
     }
 
@@ -337,6 +411,29 @@ function App() {
       senderId: clientId,
     })
   }
+
+  const removeHistoryItem = useCallback(
+    (historyId: string) => {
+      // Find the history item to get its shapeId if it exists
+      const historyItem = history.find((item) => item.id === historyId)
+      
+      // Remove from history
+      setHistory((prev) => prev.filter((item) => item.id !== historyId))
+      
+      // If this history item is linked to a shape, remove that shape too
+      if (historyItem?.shapeId) {
+        setShapes((prev) => prev.filter((shape) => shape.id !== historyItem.shapeId))
+      }
+      
+      broadcast({
+        kind: 'remove-history',
+        historyId,
+        shapeId: historyItem?.shapeId,
+        senderId: clientId,
+      })
+    },
+    [broadcast, clientId, history],
+  )
 
   const renderShape = (shape: Shape) => {
     switch (shape.type) {
@@ -400,7 +497,7 @@ function App() {
               y={shape.y}
               width={width}
               height={height}
-              fill="rgba(15,23,42,0.25)"
+              fill={theme === 'light' ? 'rgba(241, 245, 249, 0.3)' : 'rgba(15, 23, 42, 0.25)'}
               stroke={shape.stroke}
               strokeWidth={1.5}
               rx={4}
@@ -441,6 +538,7 @@ function App() {
             placeholder="Your name"
           />
         </div>
+        <ThemeToggle />
       </header>
 
       <section className="content">
@@ -451,7 +549,7 @@ function App() {
               <button
                 key={item}
                 className={`tool-btn ${tool === item ? 'active' : ''}`}
-                onClick={() => setTool(item)}
+                onClick={() => handleToolChange(item)}
               >
                 {item === 'pen' && '✏️ Stroke'}
                 {item === 'text' && '📝 Text'}
@@ -512,6 +610,42 @@ function App() {
                 />
               )}
             </svg>
+            {textEditing && (
+              <input
+                ref={textInputRef}
+                type="text"
+                className="board-text-input"
+                value={textEditing.value}
+                onChange={(e) =>
+                  setTextEditing({
+                    ...textEditing,
+                    value: e.target.value,
+                  })
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    commitText(textEditing.value, textEditing.position)
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault()
+                    cancelTextEditing()
+                  }
+                }}
+                onBlur={() => {
+                  if (textEditing.value.trim()) {
+                    commitText(textEditing.value, textEditing.position)
+                  } else {
+                    cancelTextEditing()
+                  }
+                }}
+                style={{
+                  left: `${textEditing.position.x}px`,
+                  top: `${textEditing.position.y}px`,
+                  color: color,
+                }}
+                placeholder="Type text here..."
+              />
+            )}
           </div>
         </div>
 
@@ -533,11 +667,21 @@ function App() {
           <ul className="history-list">
             {history.map((entry) => (
               <li key={entry.id} className="history-row">
-                <div>
+                <div className="history-content">
                   <p className="history-description">{entry.description}</p>
                   <p className="history-user">{entry.user}</p>
                 </div>
-                <span className="history-time">{formatTime(entry.timestamp)}</span>
+                <div className="history-actions">
+                  <span className="history-time">{formatTime(entry.timestamp)}</span>
+                  <button
+                    className="history-delete-btn"
+                    onClick={() => removeHistoryItem(entry.id)}
+                    aria-label={`Remove ${entry.description}`}
+                    title="Remove this action"
+                  >
+                    ×
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
