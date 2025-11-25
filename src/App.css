@@ -268,6 +268,21 @@
   justify-content: space-between;
 }
 
+.primary-btn {
+  border-radius: 999px;
+  border: 1px solid var(--color-tool-active-border);
+  background: var(--color-tool-active-bg);
+  color: inherit;
+  padding: 0.35rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: filter 150ms ease;
+}
+
+.primary-btn:hover {
+  filter: brightness(1.05);
+}
+
 .history-meta {
   margin: 0.15rem 0 0;
   color: var(--color-history-meta);

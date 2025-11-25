@@ -281,6 +281,28 @@ function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }, [])
 
+  const handleDownloadResult = useCallback(() => {
+    if (typeof window === 'undefined') return
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      generatedBy: userName,
+      shapes: shapesRef.current,
+      history: historyRef.current,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    link.href = url
+    link.download = `whiteboard-${timestamp}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }, [userName])
+
   const saveStateForUndo = useCallback(() => {
     if (isUndoRedoRef.current) {
       isUndoRedoRef.current = false
@@ -784,6 +806,10 @@ function App() {
             </button>
           </div>
 
+          <button className="primary-btn" type="button" onClick={handleDownloadResult}>
+            ⬇ Download result
+          </button>
+
           <button className="danger-btn" onClick={clearBoard}>
             Clear board
           </button>
@@ -820,11 +846,13 @@ function App() {
               <p className="panel-title">History</p>
               <p className="history-meta">
                 {history.length ? `${history.length} events` : 'No activity'}
-        </p>
-      </div>
+              </p>
+            </div>
             <button
               className="ghost-btn"
-              onClick={() => window.alert('Open this dashboard in another tab to collaborate in real-time!')}
+              onClick={() =>
+                window.alert('Open this dashboard in another tab to collaborate in real-time!')
+              }
             >
               Invite
             </button>

@@ -4,15 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added Undo/redo feature">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/assets/index-C3iVRiBw.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/assets/index-DE8OOcxx.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/App.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/index.css" afterDir="false" />
-    </list>
+    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added dark/light mode feature" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -62,7 +54,7 @@
       <option name="presentableId" value="Default" />
       <updated>1763994284560</updated>
       <workItem from="1763994285669" duration="2159000" />
-      <workItem from="1764056558512" duration="1040000" />
+      <workItem from="1764056558512" duration="1369000" />
     </task>
     <task id="LOCAL-00001" summary="Added scrolls">
       <option name="closed" value="true" />
@@ -96,7 +88,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764056586552</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Added dark/light mode feature">
+      <option name="closed" value="true" />
+      <created>1764057703111</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1764057703111</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -106,6 +106,7 @@
     <MESSAGE value="Added scrolls" />
     <MESSAGE value="Added Add text to table cell feature" />
     <MESSAGE value="Added Undo/redo feature" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added Undo/redo feature" />
+    <MESSAGE value="Added dark/light mode feature" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added dark/light mode feature" />
   </component>
 </project>
