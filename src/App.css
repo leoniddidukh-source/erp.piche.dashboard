@@ -222,12 +222,6 @@
   cursor: crosshair;
 }
 
-.board.pencil-mode {
-  cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%22%23facc15%22 d=%22M2 17.75V22h4.25L19.81 8.44l-4.24-4.24zm19.71-11.04a1 1 0 0 0 0-1.41l-2.01-2.01a1 1 0 0 0-1.41 0l-1.83 1.83l4.24 4.24z%22/%3E%3C/svg%3E')
-      1 23,
-    crosshair;
-}
-
 .board.move-mode {
   cursor: grab;
 }

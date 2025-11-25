@@ -113,6 +113,11 @@ const MIN_PATH_DIMENSION = 4
 const ERASER_RADIUS = 18
 const DEFAULT_CELL_COLOR = '#e2e8f0'
 
+const buildPencilCursor = (hexColor: string) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="${hexColor}" d="M2 17.75V22h4.25L19.81 8.44l-4.24-4.24zm19.71-11.04a1 1 0 0 0 0-1.41l-2.01-2.01a1 1 0 0 0-1.41 0l-1.83 1.83l4.24 4.24z"/></svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 1 23, crosshair`
+}
+
 type ShapeBounds = {
   minX: number
   minY: number
@@ -1498,9 +1503,8 @@ function App() {
             ref={boardRef}
             className={`board ${tool === 'move' ? 'move-mode' : ''} ${
               tool === 'resize' ? 'resize-mode' : ''
-            } ${tool === 'eraser' ? 'eraser-mode' : ''} ${
-              tool === 'pen' ? 'pencil-mode' : ''
-            }`}
+            } ${tool === 'eraser' ? 'eraser-mode' : ''}`}
+            style={tool === 'pen' ? { cursor: buildPencilCursor(color) } : undefined}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
