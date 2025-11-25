@@ -4,7 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added Eraser tool" />
+    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added Table changes">
+      <change afterPath="$PROJECT_DIR$/dist/assets/index-DrSYXgRi.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dist/assets/index-eP_voEbf.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/assets/index-BaNAonsd.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/assets/index-CH57yrg7.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/App.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.tsx" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -54,7 +63,7 @@
       <option name="presentableId" value="Default" />
       <updated>1763994284560</updated>
       <workItem from="1763994285669" duration="2159000" />
-      <workItem from="1764056558512" duration="7830000" />
+      <workItem from="1764056558512" duration="8927000" />
     </task>
     <task id="LOCAL-00001" summary="Added scrolls">
       <option name="closed" value="true" />
@@ -152,7 +161,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764071072466</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="Added Text changes">
+      <option name="closed" value="true" />
+      <created>1764071536623</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1764071536623</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -169,6 +186,8 @@
     <MESSAGE value="Added resize feature" />
     <MESSAGE value="Updated download feature" />
     <MESSAGE value="Added Eraser tool" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added Eraser tool" />
+    <MESSAGE value="Added Text changes" />
+    <MESSAGE value="Added Table changes" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added Table changes" />
   </component>
 </project>

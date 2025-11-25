@@ -29,6 +29,11 @@ type TextShape = BaseShape & {
   fontSize: number
 }
 
+type TableCell = {
+  value: string
+  color: string
+}
+
 type TableShape = BaseShape & {
   type: 'table'
   x: number
@@ -38,7 +43,7 @@ type TableShape = BaseShape & {
   cellWidth: number
   cellHeight: number
   stroke: string
-  cells: string[][]
+  cells: TableCell[][]
 }
 
 type Shape = PathShape | TextShape | TableShape
@@ -106,6 +111,7 @@ const MIN_TABLE_CELL = 20
 const MIN_RESIZE_DIMENSION = 16
 const MIN_PATH_DIMENSION = 4
 const ERASER_RADIUS = 18
+const DEFAULT_CELL_COLOR = '#e2e8f0'
 
 type ShapeBounds = {
   minX: number
@@ -214,12 +220,24 @@ const formatTime = (timestamp: number) =>
   }).format(timestamp)
 
 const ensureTableCells = (shape: TableShape): TableShape => {
-  const legacyCells = (shape as TableShape & { cells?: string[][] }).cells
-  const cells = Array.from({ length: shape.rows }, (_, rowIndex) => {
+  const legacyCells = (shape as TableShape & { cells?: Array<TableCell | string | undefined>[] }).cells
+  const normalizedCells = Array.from({ length: shape.rows }, (_, rowIndex) => {
     const existingRow = legacyCells?.[rowIndex] ?? []
-    return Array.from({ length: shape.cols }, (_, colIndex) => existingRow[colIndex] ?? '')
+    return Array.from({ length: shape.cols }, (_, colIndex) => {
+      const existingCell = existingRow[colIndex]
+      if (!existingCell) {
+        return { value: '', color: DEFAULT_CELL_COLOR }
+      }
+      if (typeof existingCell === 'string') {
+        return { value: existingCell, color: DEFAULT_CELL_COLOR }
+      }
+      return {
+        value: existingCell.value ?? '',
+        color: existingCell.color ?? DEFAULT_CELL_COLOR,
+      }
+    })
   })
-  return { ...shape, cells }
+  return { ...shape, cells: normalizedCells }
 }
 
 const normalizeShape = (shape: Shape): Shape => {
@@ -315,6 +333,14 @@ function App() {
     y: number
     value: string
   } | null>(null)
+  const [cellEditor, setCellEditor] = useState<{
+    tableId: string
+    row: number
+    col: number
+    x: number
+    y: number
+    value: string
+  } | null>(null)
   const [tableEditor, setTableEditor] = useState<{
     id: string
     x: number
@@ -343,6 +369,7 @@ function App() {
     startBounds: ShapeBounds
   } | null>(null)
   const textInputRef = useRef<HTMLTextAreaElement | null>(null)
+  const cellInputRef = useRef<HTMLInputElement | null>(null)
   const tableRowsRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -370,6 +397,7 @@ function App() {
   useEffect(() => {
     if (tool !== 'text') {
       setTextEditor(null)
+      setCellEditor(null)
     }
     if (tool !== 'table') {
       setTableEditor(null)
@@ -384,6 +412,17 @@ function App() {
       })
     }
   }, [tableEditor, tool])
+
+  useEffect(() => {
+    if (cellEditor && tool === 'text') {
+      requestAnimationFrame(() => {
+        cellInputRef.current?.focus()
+        if (cellEditor.value === '') {
+          cellInputRef.current?.select()
+        }
+      })
+    }
+  }, [cellEditor?.tableId, cellEditor?.row, cellEditor?.col, tool])
 
   useEffect(() => {
     if (typeof document === 'undefined') return
@@ -727,14 +766,20 @@ function App() {
   )
 
   const updateTableCell = useCallback(
-    (tableShape: TableShape, row: number, col: number, value: string) => {
+    (tableShape: TableShape, row: number, col: number, value: string, options?: { color?: string }) => {
       const normalizedTable = ensureTableCells(tableShape)
       const sanitizedValue = value.trim()
-      if (normalizedTable.cells[row]?.[col] === sanitizedValue) return
+      const targetRow = normalizedTable.cells[row]
+      if (!targetRow) return
+      const existingCell = targetRow[col]
+      const nextColor = options?.color ?? existingCell?.color ?? DEFAULT_CELL_COLOR
+      if (existingCell && existingCell.value === sanitizedValue && existingCell.color === nextColor) {
+        return
+      }
       const updatedCells = normalizedTable.cells.map((cellRow, rowIndex) =>
         rowIndex === row
-          ? cellRow.map((cellValue, colIndex) =>
-              colIndex === col ? sanitizedValue : cellValue,
+          ? cellRow.map((cell, colIndex) =>
+              colIndex === col ? { value: sanitizedValue, color: nextColor } : cell,
             )
           : cellRow,
       )
@@ -779,6 +824,65 @@ function App() {
     setTextEditor((current) => (current ? { ...current, value: nextValue } : current))
   }, [])
 
+  const finalizeCellEditor = useCallback(
+    (shouldCommit: boolean) => {
+      setCellEditor((current) => {
+        if (!current) return null
+        if (shouldCommit) {
+          const trimmed = current.value.trim()
+          const tableShape = shapesRef.current.find(
+            (shape): shape is TableShape => shape.id === current.tableId && shape.type === 'table',
+          )
+          if (tableShape) {
+            updateTableCell(tableShape, current.row, current.col, trimmed, { color })
+          }
+        }
+        return null
+      })
+    },
+    [color, updateTableCell],
+  )
+
+  const finalizeTableEditor = useCallback(
+    (shouldCommit: boolean) => {
+      setTableEditor((current) => {
+        if (!current) return null
+        if (shouldCommit) {
+          const rows = clamp(Math.round(current.rows), 1, 12)
+          const cols = clamp(Math.round(current.cols), 1, 12)
+          if (rows && cols) {
+            const shape: TableShape = {
+              id: current.id,
+              type: 'table',
+              createdAt: getTimestamp(),
+              createdBy: userName,
+              x: current.x,
+              y: current.y,
+              rows,
+              cols,
+              cellWidth: 80,
+              cellHeight: 40,
+              stroke: color,
+              cells: Array.from({ length: rows }, () =>
+                Array.from({ length: cols }, () => ({ value: '', color: DEFAULT_CELL_COLOR })),
+              ),
+            }
+            commitShape(shape, `${userName} created a ${shape.rows}x${shape.cols} table`)
+          }
+        }
+        return null
+      })
+    },
+    [color, commitShape, userName],
+  )
+
+  const handleTableEditorChange = useCallback(
+    (key: 'rows' | 'cols', value: number) => {
+      setTableEditor((current) => (current ? { ...current, [key]: value } : current))
+    },
+    [],
+  )
+
   const getPointerPosition = useCallback((clientX: number, clientY: number) => {
     const board = boardRef.current
     if (!board) return null
@@ -802,6 +906,12 @@ function App() {
     if (tool === 'move' || tool === 'resize') return
     if (tool === 'text' && textEditor) {
       finalizeTextEditor(true)
+    }
+    if (tool === 'text' && cellEditor) {
+      finalizeCellEditor(true)
+    }
+    if (tool === 'table' && tableEditor) {
+      finalizeTableEditor(true)
     }
 
     const point = getRelativePoint(event)
@@ -832,10 +942,15 @@ function App() {
       const tableCell = getTableCellAtPoint(point)
       if (tableCell) {
         const { shape, row, col } = tableCell
-        const currentValue = shape.cells[row][col] ?? ''
-        const nextValue = window.prompt('Text for this cell?', currentValue)
-        if (nextValue === null) return
-        updateTableCell(shape, row, col, nextValue)
+        const cellValue = shape.cells[row]?.[col]?.value ?? ''
+        setCellEditor({
+          tableId: shape.id,
+          row,
+          col,
+          x: shape.x + col * shape.cellWidth + 4,
+          y: shape.y + row * shape.cellHeight + 4,
+          value: cellValue,
+        })
         return
       }
 
@@ -849,33 +964,14 @@ function App() {
     }
 
     if (tool === 'table') {
-      const rows = Number(window.prompt('How many rows? (1-12)', '3')) || 0
-      const cols = Number(window.prompt('How many columns? (1-12)', '4')) || 0
-      if (!rows || !cols) return
-
-      const clampedRows = clamp(rows, 1, 12)
-      const clampedCols = clamp(cols, 1, 12)
-      const shape: TableShape = {
+      setTableEditor({
         id: randomId(),
-        type: 'table',
-        createdAt: getTimestamp(),
-        createdBy: userName,
         x: point.x,
         y: point.y,
-        rows: clampedRows,
-        cols: clampedCols,
-        cellWidth: 80,
-        cellHeight: 40,
-        stroke: color,
-        cells: Array.from({ length: clampedRows }, () =>
-          Array.from({ length: clampedCols }, () => ''),
-        ),
-      }
-
-      commitShape(
-        shape,
-        `${userName} created a ${shape.rows}x${shape.cols} table`,
-      )
+        rows: 3,
+        cols: 4,
+      })
+      return
     }
   }
 
@@ -1174,6 +1270,7 @@ function App() {
             y={shape.y}
             fill={shape.color}
             fontSize={shape.fontSize}
+            style={{ fill: shape.color }}
             className={`board-text ${tool === 'move' ? 'movable-shape' : ''}`}
             onPointerDown={
               tool === 'move'
@@ -1215,8 +1312,10 @@ function App() {
         const textNodes: React.ReactNode[] = []
         for (let row = 0; row < shape.rows; row += 1) {
           for (let col = 0; col < shape.cols; col += 1) {
-            const cellValue = shape.cells[row]?.[col]
+            const cell = shape.cells[row]?.[col]
+            const cellValue = cell?.value
             if (!cellValue) continue
+            const cellColor = cell?.color ?? DEFAULT_CELL_COLOR
             const cx = shape.x + col * shape.cellWidth + shape.cellWidth / 2
             const cy = shape.y + row * shape.cellHeight + shape.cellHeight / 2 + 4
             textNodes.push(
@@ -1227,6 +1326,8 @@ function App() {
                 className="table-cell-text"
                 textAnchor="middle"
                 dominantBaseline="middle"
+                fill={cellColor}
+                style={{ fill: cellColor }}
               >
                 {cellValue}
               </text>,
@@ -1397,7 +1498,9 @@ function App() {
             ref={boardRef}
             className={`board ${tool === 'move' ? 'move-mode' : ''} ${
               tool === 'resize' ? 'resize-mode' : ''
-            } ${tool === 'eraser' ? 'eraser-mode' : ''}`}
+            } ${tool === 'eraser' ? 'eraser-mode' : ''} ${
+              tool === 'pen' ? 'pencil-mode' : ''
+            }`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -1424,6 +1527,7 @@ function App() {
                   left: textEditor.x,
                   top: Math.max(textEditor.y - DEFAULT_FONT_SIZE * 1.2, 0),
                 }}
+                onPointerDown={(event) => event.stopPropagation()}
                 value={textEditor.value}
                 onChange={handleTextEditorChange}
                 onBlur={() => finalizeTextEditor(true)}
@@ -1438,6 +1542,74 @@ function App() {
                 }}
                 placeholder="Type here..."
               />
+            )}
+            {cellEditor && tool === 'text' && (
+              <input
+                ref={cellInputRef}
+                className="cell-editor"
+                style={{
+                  left: cellEditor.x,
+                  top: cellEditor.y,
+                }}
+                onPointerDown={(event) => event.stopPropagation()}
+                value={cellEditor.value}
+                onChange={(event) =>
+                  setCellEditor((current) =>
+                    current ? { ...current, value: event.target.value } : current,
+                  )
+                }
+                onBlur={() => finalizeCellEditor(true)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    finalizeCellEditor(true)
+                  } else if (event.key === 'Escape') {
+                    event.preventDefault()
+                    finalizeCellEditor(false)
+                  }
+                }}
+                placeholder="Cell text"
+              />
+            )}
+            {tableEditor && tool === 'table' && (
+              <div
+                className="table-editor"
+                style={{
+                  left: tableEditor.x,
+                  top: tableEditor.y,
+                }}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <label>
+                  Rows
+                  <input
+                    ref={tableRowsRef}
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={tableEditor.rows}
+                    onChange={(event) => handleTableEditorChange('rows', Number(event.target.value))}
+                  />
+                </label>
+                <label>
+                  Columns
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={tableEditor.cols}
+                    onChange={(event) => handleTableEditorChange('cols', Number(event.target.value))}
+                  />
+                </label>
+                <div className="table-editor-actions">
+                  <button type="button" className="ghost-btn" onClick={() => finalizeTableEditor(false)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="primary-btn" onClick={() => finalizeTableEditor(true)}>
+                    Create
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
