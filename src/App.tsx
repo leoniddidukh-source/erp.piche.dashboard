@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import './App.css'
 
-type Tool = 'pen' | 'text' | 'table' | 'move' | 'resize' | 'eraser'
+type Tool = 'pen' | 'text' | 'table' | 'shapes' | 'move' | 'resize' | 'eraser'
+type ShapeType = 'rectangle' | 'circle' | 'line' | 'ellipse'
 type Theme = 'light' | 'dark'
 
 type Point = { x: number; y: number }
@@ -46,7 +47,49 @@ type TableShape = BaseShape & {
   cells: TableCell[][]
 }
 
-type Shape = PathShape | TextShape | TableShape
+type RectangleShape = BaseShape & {
+  type: 'rectangle'
+  x: number
+  y: number
+  width: number
+  height: number
+  stroke: string
+  strokeWidth: number
+  fill?: string
+}
+
+type CircleShape = BaseShape & {
+  type: 'circle'
+  cx: number
+  cy: number
+  r: number
+  stroke: string
+  strokeWidth: number
+  fill?: string
+}
+
+type EllipseShape = BaseShape & {
+  type: 'ellipse'
+  cx: number
+  cy: number
+  rx: number
+  ry: number
+  stroke: string
+  strokeWidth: number
+  fill?: string
+}
+
+type LineShape = BaseShape & {
+  type: 'line'
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  stroke: string
+  strokeWidth: number
+}
+
+type Shape = PathShape | TextShape | TableShape | RectangleShape | CircleShape | EllipseShape | LineShape
 
 type HistoryItem = {
   id: string
@@ -181,6 +224,50 @@ const getShapeBounds = (shape: Shape): ShapeBounds => {
         maxY,
         width: Math.max(maxX - minX, MIN_PATH_DIMENSION),
         height: Math.max(maxY - minY, MIN_PATH_DIMENSION),
+      }
+    }
+    case 'rectangle': {
+      return {
+        minX: shape.x,
+        minY: shape.y,
+        maxX: shape.x + shape.width,
+        maxY: shape.y + shape.height,
+        width: shape.width,
+        height: shape.height,
+      }
+    }
+    case 'circle': {
+      return {
+        minX: shape.cx - shape.r,
+        minY: shape.cy - shape.r,
+        maxX: shape.cx + shape.r,
+        maxY: shape.cy + shape.r,
+        width: shape.r * 2,
+        height: shape.r * 2,
+      }
+    }
+    case 'ellipse': {
+      return {
+        minX: shape.cx - shape.rx,
+        minY: shape.cy - shape.ry,
+        maxX: shape.cx + shape.rx,
+        maxY: shape.cy + shape.ry,
+        width: shape.rx * 2,
+        height: shape.ry * 2,
+      }
+    }
+    case 'line': {
+      const minX = Math.min(shape.x1, shape.x2)
+      const maxX = Math.max(shape.x1, shape.x2)
+      const minY = Math.min(shape.y1, shape.y2)
+      const maxY = Math.max(shape.y1, shape.y2)
+      return {
+        minX,
+        minY,
+        maxX,
+        maxY,
+        width: maxX - minX,
+        height: maxY - minY,
       }
     }
     default:
@@ -325,6 +412,9 @@ function App() {
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColor] = useState('#22d3ee')
   const [strokeWidth, setStrokeWidth] = useState(4)
+  const [shapeType, setShapeType] = useState<ShapeType>('rectangle')
+  const [isDrawingShape, setIsDrawingShape] = useState(false)
+  const [tempShape, setTempShape] = useState<{ start: Point; current: Point } | null>(null)
 
   const [shapes, setShapes] = useState<Shape[]>(() =>
     normalizeShapes(loadFromStorage<Shape[]>(STORAGE_KEYS.shapes, [])),
@@ -366,7 +456,7 @@ function App() {
   const isUndoRedoRef = useRef(false)
   const draggingShapeRef = useRef<{
     id: string
-    type: 'text' | 'table' | 'path'
+    type: 'text' | 'table' | 'path' | 'rectangle' | 'circle' | 'ellipse' | 'line'
     offset: Point
     size: { width: number; height: number }
   } | null>(null)
@@ -763,7 +853,13 @@ function App() {
     (point: Point) => {
       for (let index = shapesRef.current.length - 1; index >= 0; index -= 1) {
         const shape = shapesRef.current[index]
-        if (shape.type === 'table' || shape.type === 'text') {
+        if (
+          shape.type === 'table' ||
+          shape.type === 'text' ||
+          shape.type === 'rectangle' ||
+          shape.type === 'circle' ||
+          shape.type === 'ellipse'
+        ) {
           const bounds = getShapeBounds(shape)
           if (isPointInsideBounds(point, bounds)) {
             return shape
@@ -773,6 +869,10 @@ function App() {
             if (isPointNearSegment(point, shape.points[i], shape.points[i + 1], ERASER_RADIUS)) {
               return shape
             }
+          }
+        } else if (shape.type === 'line') {
+          if (isPointNearSegment(point, { x: shape.x1, y: shape.y1 }, { x: shape.x2, y: shape.y2 }, ERASER_RADIUS)) {
+            return shape
           }
         }
       }
@@ -941,7 +1041,9 @@ function App() {
           ? `${userName} erased text "${targetShape.text}"`
           : targetShape.type === 'table'
             ? `${userName} erased a ${targetShape.rows}x${targetShape.cols} table`
-            : `${userName} erased a stroke`
+            : targetShape.type === 'path'
+              ? `${userName} erased a stroke`
+              : `${userName} erased a ${targetShape.type}`
       deleteShape(targetShape.id, description)
       return
     }
@@ -989,12 +1091,29 @@ function App() {
       })
       return
     }
+
+    if (tool === 'shapes') {
+      setIsDrawingShape(true)
+      setTempShape({ start: point, current: point })
+      event.currentTarget.setPointerCapture(event.pointerId)
+      event.preventDefault()
+      return
+    }
   }
 
   const handleShapePointerDown = useCallback(
     (event: React.PointerEvent<Element>, shape: Shape) => {
       if (tool !== 'move') return
-      if (shape.type !== 'text' && shape.type !== 'table' && shape.type !== 'path') return
+      if (
+        shape.type !== 'text' &&
+        shape.type !== 'table' &&
+        shape.type !== 'path' &&
+        shape.type !== 'rectangle' &&
+        shape.type !== 'circle' &&
+        shape.type !== 'ellipse' &&
+        shape.type !== 'line'
+      )
+        return
       const position = getPointerPosition(event.clientX, event.clientY)
       if (!position) return
       event.stopPropagation()
@@ -1046,7 +1165,16 @@ function App() {
     if (!drag) return
     const target = shapesRef.current.find((shape) => shape.id === drag.id)
     draggingShapeRef.current = null
-    if (!target || (target.type !== 'text' && target.type !== 'table' && target.type !== 'path')) {
+    if (
+      !target ||
+      (target.type !== 'text' &&
+        target.type !== 'table' &&
+        target.type !== 'path' &&
+        target.type !== 'rectangle' &&
+        target.type !== 'circle' &&
+        target.type !== 'ellipse' &&
+        target.type !== 'line')
+    ) {
       return
     }
     const description =
@@ -1054,7 +1182,9 @@ function App() {
         ? `${userName} moved text "${target.text}"`
         : target.type === 'table'
           ? `${userName} moved ${target.rows}x${target.cols} table`
-          : `${userName} moved a stroke`
+          : target.type === 'path'
+            ? `${userName} moved a stroke`
+            : `${userName} moved a ${target.type}`
     applyShapeUpdate(target, description, { skipUndoSnapshot: true })
   }, [applyShapeUpdate, userName])
 
@@ -1069,11 +1199,19 @@ function App() {
         ? `${userName} resized text "${target.text}"`
         : target.type === 'table'
           ? `${userName} resized ${target.rows}x${target.cols} table`
-          : `${userName} resized a stroke`
+          : target.type === 'path'
+            ? `${userName} resized a stroke`
+            : `${userName} resized a ${target.type}`
     applyShapeUpdate(target, description, { skipUndoSnapshot: true })
   }, [applyShapeUpdate, userName])
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (isDrawingShape && tempShape) {
+      const point = getRelativePoint(event)
+      if (!point) return
+      setTempShape((prev) => (prev ? { ...prev, current: point } : null))
+      return
+    }
     if (resizingShapeRef.current) {
       const position = getPointerPosition(event.clientX, event.clientY)
       if (!position) return
@@ -1127,6 +1265,57 @@ function App() {
             }))
             return { ...shape, points: scaledPoints }
           }
+          if (original.type === 'rectangle') {
+            return {
+              ...shape,
+              width: Math.max(original.width * scaleX, MIN_RESIZE_DIMENSION),
+              height: Math.max(original.height * scaleY, MIN_RESIZE_DIMENSION),
+            }
+          }
+          if (original.type === 'circle') {
+            const scale = Math.max(scaleX, scaleY)
+            return {
+              ...shape,
+              r: Math.max(original.r * scale, MIN_RESIZE_DIMENSION / 2),
+            }
+          }
+          if (original.type === 'ellipse') {
+            return {
+              ...shape,
+              rx: Math.max(original.rx * scaleX, MIN_RESIZE_DIMENSION / 2),
+              ry: Math.max(original.ry * scaleY, MIN_RESIZE_DIMENSION / 2),
+            }
+          }
+          if (original.type === 'line') {
+            const minX = resizeState.startBounds.minX
+            const minY = resizeState.startBounds.minY
+            const originalBounds = getShapeBounds(original)
+            const scaleXLine = scaleX
+            const scaleYLine = scaleY
+            return {
+              ...shape,
+              x1: clamp(
+                minX + (original.x1 - originalBounds.minX) * scaleXLine,
+                0,
+                position.bounds.width,
+              ),
+              y1: clamp(
+                minY + (original.y1 - originalBounds.minY) * scaleYLine,
+                0,
+                position.bounds.height,
+              ),
+              x2: clamp(
+                minX + (original.x2 - originalBounds.minX) * scaleXLine,
+                0,
+                position.bounds.width,
+              ),
+              y2: clamp(
+                minY + (original.y2 - originalBounds.minY) * scaleYLine,
+                0,
+                position.bounds.height,
+              ),
+            }
+          }
           return shape
         }),
       )
@@ -1172,6 +1361,39 @@ function App() {
             }))
             return { ...shape, points: movedPoints }
           }
+          if (shape.type === 'rectangle') {
+            return {
+              ...shape,
+              x: clamp(nextX, 0, Math.max(bounds.width - shape.width, 0)),
+              y: clamp(nextY, 0, Math.max(bounds.height - shape.height, 0)),
+            }
+          }
+          if (shape.type === 'circle') {
+            return {
+              ...shape,
+              cx: clamp(point.x - offset.x + size.width / 2, shape.r, bounds.width - shape.r),
+              cy: clamp(point.y - offset.y + size.height / 2, shape.r, bounds.height - shape.r),
+            }
+          }
+          if (shape.type === 'ellipse') {
+            return {
+              ...shape,
+              cx: clamp(point.x - offset.x + size.width / 2, shape.rx, bounds.width - shape.rx),
+              cy: clamp(point.y - offset.y + size.height / 2, shape.ry, bounds.height - shape.ry),
+            }
+          }
+          if (shape.type === 'line') {
+            const currentBounds = getShapeBounds(shape)
+            const deltaX = nextX - currentBounds.minX
+            const deltaY = nextY - currentBounds.minY
+            return {
+              ...shape,
+              x1: clamp(shape.x1 + deltaX, 0, bounds.width),
+              y1: clamp(shape.y1 + deltaY, 0, bounds.height),
+              x2: clamp(shape.x2 + deltaX, 0, bounds.width),
+              y2: clamp(shape.y2 + deltaY, 0, bounds.height),
+            }
+          }
           return shape
         }),
       )
@@ -1183,7 +1405,106 @@ function App() {
     setTempPoints((prev) => [...prev, point])
   }
 
-  const handlePointerUp = () => {
+  const commitShapeGeometry = useCallback(
+    (shape: RectangleShape | CircleShape | EllipseShape | LineShape, description: string) => {
+      saveStateForUndo()
+      const historyEntry = pushHistory(description)
+      setShapes((prev) => [...prev, shape])
+      broadcast({
+        kind: 'add-shape',
+        shape,
+        history: historyEntry,
+        senderId: clientId,
+      })
+    },
+    [broadcast, clientId, pushHistory, saveStateForUndo],
+  )
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (isDrawingShape && tempShape) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+      const { start, current } = tempShape
+      const minSize = 4
+      const width = Math.abs(current.x - start.x)
+      const height = Math.abs(current.y - start.y)
+
+      if (width < minSize && height < minSize) {
+        setIsDrawingShape(false)
+        setTempShape(null)
+        return
+      }
+
+      let shape: RectangleShape | CircleShape | EllipseShape | LineShape
+      const description = `${userName} drew a ${shapeType}`
+
+      switch (shapeType) {
+        case 'rectangle': {
+          shape = {
+            id: randomId(),
+            type: 'rectangle',
+            createdAt: getTimestamp(),
+            createdBy: userName,
+            x: Math.min(start.x, current.x),
+            y: Math.min(start.y, current.y),
+            width: Math.max(width, minSize),
+            height: Math.max(height, minSize),
+            stroke: color,
+            strokeWidth,
+          }
+          break
+        }
+        case 'circle': {
+          const radius = Math.max(Math.sqrt(width * width + height * height) / 2, minSize / 2)
+          shape = {
+            id: randomId(),
+            type: 'circle',
+            createdAt: getTimestamp(),
+            createdBy: userName,
+            cx: (start.x + current.x) / 2,
+            cy: (start.y + current.y) / 2,
+            r: radius,
+            stroke: color,
+            strokeWidth,
+          }
+          break
+        }
+        case 'ellipse': {
+          shape = {
+            id: randomId(),
+            type: 'ellipse',
+            createdAt: getTimestamp(),
+            createdBy: userName,
+            cx: (start.x + current.x) / 2,
+            cy: (start.y + current.y) / 2,
+            rx: Math.max(Math.abs(width) / 2, minSize / 2),
+            ry: Math.max(Math.abs(height) / 2, minSize / 2),
+            stroke: color,
+            strokeWidth,
+          }
+          break
+        }
+        case 'line': {
+          shape = {
+            id: randomId(),
+            type: 'line',
+            createdAt: getTimestamp(),
+            createdBy: userName,
+            x1: start.x,
+            y1: start.y,
+            x2: current.x,
+            y2: current.y,
+            stroke: color,
+            strokeWidth,
+          }
+          break
+        }
+      }
+
+      commitShapeGeometry(shape, description)
+      setIsDrawingShape(false)
+      setTempShape(null)
+      return
+    }
     if (resizingShapeRef.current) {
       finalizeShapeResize()
       return
@@ -1305,7 +1626,6 @@ function App() {
         )
         break
       }
-        break
       case 'table': {
         const width = shape.cols * shape.cellWidth
         const height = shape.rows * shape.cellHeight
@@ -1384,6 +1704,80 @@ function App() {
         )
         break
       }
+      case 'rectangle':
+        node = (
+          <rect
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
+            stroke={shape.stroke}
+            strokeWidth={shape.strokeWidth}
+            fill={shape.fill || 'transparent'}
+            className={tool === 'move' ? 'movable-shape' : ''}
+            onPointerDown={
+              tool === 'move'
+                ? (event) => handleShapePointerDown(event, shape)
+                : undefined
+            }
+          />
+        )
+        break
+      case 'circle':
+        node = (
+          <circle
+            cx={shape.cx}
+            cy={shape.cy}
+            r={shape.r}
+            stroke={shape.stroke}
+            strokeWidth={shape.strokeWidth}
+            fill={shape.fill || 'transparent'}
+            className={tool === 'move' ? 'movable-shape' : ''}
+            onPointerDown={
+              tool === 'move'
+                ? (event) => handleShapePointerDown(event, shape)
+                : undefined
+            }
+          />
+        )
+        break
+      case 'ellipse':
+        node = (
+          <ellipse
+            cx={shape.cx}
+            cy={shape.cy}
+            rx={shape.rx}
+            ry={shape.ry}
+            stroke={shape.stroke}
+            strokeWidth={shape.strokeWidth}
+            fill={shape.fill || 'transparent'}
+            className={tool === 'move' ? 'movable-shape' : ''}
+            onPointerDown={
+              tool === 'move'
+                ? (event) => handleShapePointerDown(event, shape)
+                : undefined
+            }
+          />
+        )
+        break
+      case 'line':
+        node = (
+          <line
+            x1={shape.x1}
+            y1={shape.y1}
+            x2={shape.x2}
+            y2={shape.y2}
+            stroke={shape.stroke}
+            strokeWidth={shape.strokeWidth}
+            className={tool === 'move' ? 'movable-shape' : ''}
+            onPointerDown={
+              tool === 'move'
+                ? (event) => handleShapePointerDown(event, shape)
+                : undefined
+            }
+          />
+        )
+        break
       default:
         node = null
     }
@@ -1402,6 +1796,7 @@ function App() {
     pen: 'Pencil',
     text: 'Text',
     table: 'Table',
+    shapes: 'Shapes',
     move: 'Move',
     resize: 'Resize',
     eraser: 'Erase',
@@ -1447,7 +1842,7 @@ function App() {
         <aside className="panel tool-panel">
           <p className="panel-title">Create</p>
           <div className="tool-grid">
-            {(['pen', 'text', 'table', 'move', 'resize', 'eraser'] as Tool[]).map((item) => (
+            {(['pen', 'text', 'table', 'shapes', 'move', 'resize', 'eraser'] as Tool[]).map((item) => (
               <button
                 key={item}
                 className={`tool-btn ${tool === item ? 'active' : ''}`}
@@ -1456,12 +1851,33 @@ function App() {
                 {item === 'pen' && '✏️ Pencil'}
                 {item === 'text' && '📝 Text'}
                 {item === 'table' && '📊 Table'}
+                {item === 'shapes' && '🔷 Shapes'}
                 {item === 'move' && '🤚 Move'}
                 {item === 'resize' && '📐 Resize'}
                 {item === 'eraser' && '🧽 Eraser'}
               </button>
             ))}
           </div>
+
+          {tool === 'shapes' && (
+            <div className="control">
+              <label>Shape type</label>
+              <div className="shape-type-selector">
+                {(['rectangle', 'circle', 'ellipse', 'line'] as ShapeType[]).map((type) => (
+                  <button
+                    key={type}
+                    className={`shape-type-btn ${shapeType === type ? 'active' : ''}`}
+                    onClick={() => setShapeType(type)}
+                  >
+                    {type === 'rectangle' && '▭ Rectangle'}
+                    {type === 'circle' && '○ Circle'}
+                    {type === 'ellipse' && '⬭ Ellipse'}
+                    {type === 'line' && '─ Line'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="control">
             <label>Ink color</label>
@@ -1541,6 +1957,71 @@ function App() {
                   fill="none"
                 />
               )}
+              {isDrawingShape && tempShape && (() => {
+                const { start, current } = tempShape
+                const width = Math.abs(current.x - start.x)
+                const height = Math.abs(current.y - start.y)
+                switch (shapeType) {
+                  case 'rectangle':
+                    return (
+                      <rect
+                        x={Math.min(start.x, current.x)}
+                        y={Math.min(start.y, current.y)}
+                        width={width}
+                        height={height}
+                        stroke={color}
+                        strokeWidth={strokeWidth}
+                        fill="transparent"
+                        strokeDasharray="4"
+                        opacity={0.7}
+                      />
+                    )
+                  case 'circle': {
+                    const radius = Math.sqrt(width * width + height * height) / 2
+                    return (
+                      <circle
+                        cx={(start.x + current.x) / 2}
+                        cy={(start.y + current.y) / 2}
+                        r={radius}
+                        stroke={color}
+                        strokeWidth={strokeWidth}
+                        fill="transparent"
+                        strokeDasharray="4"
+                        opacity={0.7}
+                      />
+                    )
+                  }
+                  case 'ellipse':
+                    return (
+                      <ellipse
+                        cx={(start.x + current.x) / 2}
+                        cy={(start.y + current.y) / 2}
+                        rx={Math.abs(width) / 2}
+                        ry={Math.abs(height) / 2}
+                        stroke={color}
+                        strokeWidth={strokeWidth}
+                        fill="transparent"
+                        strokeDasharray="4"
+                        opacity={0.7}
+                      />
+                    )
+                  case 'line':
+                    return (
+                      <line
+                        x1={start.x}
+                        y1={start.y}
+                        x2={current.x}
+                        y2={current.y}
+                        stroke={color}
+                        strokeWidth={strokeWidth}
+                        strokeDasharray="4"
+                        opacity={0.7}
+                      />
+                    )
+                  default:
+                    return null
+                }
+              })()}
             </svg>
             {textEditor && tool === 'text' && (
               <textarea

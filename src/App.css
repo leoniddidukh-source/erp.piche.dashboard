@@ -126,6 +126,28 @@
   background: var(--color-tool-active-bg);
 }
 
+.shape-type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.shape-type-btn {
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid transparent;
+  background: var(--color-tool-bg);
+  color: inherit;
+  text-align: center;
+  font-size: 0.85rem;
+  transition: all 150ms ease;
+}
+
+.shape-type-btn.active {
+  border-color: var(--color-tool-active-border);
+  background: var(--color-tool-active-bg);
+}
+
 .control {
   display: flex;
   flex-direction: column;
