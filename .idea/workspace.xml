@@ -4,14 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Updated download feature">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/assets/index-B6oLRnyW.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/assets/index-DOEbq1J8.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/App.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.tsx" afterDir="false" />
-    </list>
+    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added Eraser tool" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -61,7 +54,7 @@
       <option name="presentableId" value="Default" />
       <updated>1763994284560</updated>
       <workItem from="1763994285669" duration="2159000" />
-      <workItem from="1764056558512" duration="7006000" />
+      <workItem from="1764056558512" duration="7457000" />
     </task>
     <task id="LOCAL-00001" summary="Added scrolls">
       <option name="closed" value="true" />
@@ -143,7 +136,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764062084410</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="Added Eraser tool">
+      <option name="closed" value="true" />
+      <created>1764070464675</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1764070464675</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -159,6 +160,7 @@
     <MESSAGE value="Added drag&amp;drop feature" />
     <MESSAGE value="Added resize feature" />
     <MESSAGE value="Updated download feature" />
-    <option name="LAST_COMMIT_MESSAGE" value="Updated download feature" />
+    <MESSAGE value="Added Eraser tool" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added Eraser tool" />
   </component>
 </project>

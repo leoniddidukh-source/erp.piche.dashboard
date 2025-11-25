@@ -174,6 +174,8 @@ const getShapeBounds = (shape: Shape): ShapeBounds => {
   }
 }
 
+const getTimestamp = () => Date.now()
+
 const getPreferredTheme = (): Theme => {
   if (typeof window === 'undefined') return 'dark'
   const storedTheme = loadFromStorage<Theme | null>(STORAGE_KEYS.theme, null)
@@ -508,7 +510,7 @@ function App() {
     (description: string, userOverride?: string) => {
       const entry: HistoryItem = {
         id: randomId(),
-        timestamp: Date.now(),
+        timestamp: getTimestamp(),
         user: userOverride ?? userName,
         description,
       }
@@ -620,7 +622,7 @@ function App() {
       const shape: PathShape = {
         id: randomId(),
         type: 'path',
-        createdAt: Date.now(),
+        createdAt: getTimestamp(),
         createdBy: userName,
         points,
         stroke: color,
@@ -766,7 +768,7 @@ function App() {
       const shape: TextShape = {
         id: randomId(),
         type: 'text',
-        createdAt: Date.now(),
+        createdAt: getTimestamp(),
         createdBy: userName,
         x: point.x,
         y: point.y,
@@ -789,7 +791,7 @@ function App() {
       const shape: TableShape = {
         id: randomId(),
         type: 'table',
-        createdAt: Date.now(),
+        createdAt: getTimestamp(),
         createdBy: userName,
         x: point.x,
         y: point.y,
