@@ -3,6 +3,7 @@ import type React from 'react'
 import './App.css'
 
 type Tool = 'pen' | 'text' | 'table'
+type Theme = 'light' | 'dark'
 
 type Point = { x: number; y: number }
 
@@ -80,6 +81,7 @@ const STORAGE_KEYS = {
   shapes: 'dashboard.whiteboard.shapes',
   history: 'dashboard.whiteboard.history',
   user: 'dashboard.whiteboard.user',
+  theme: 'dashboard.whiteboard.theme',
 } as const
 
 const randomId = () =>
@@ -89,6 +91,16 @@ const randomId = () =>
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
+
+const getPreferredTheme = (): Theme => {
+  if (typeof window === 'undefined') return 'dark'
+  const storedTheme = loadFromStorage<Theme | null>(STORAGE_KEYS.theme, null)
+  if (storedTheme === 'light' || storedTheme === 'dark') {
+    return storedTheme
+  }
+  const prefersLight = window.matchMedia?.('(prefers-color-scheme: light)').matches
+  return prefersLight ? 'light' : 'dark'
+}
 
 const loadFromStorage = <T,>(key: string, fallback: T): T => {
   if (typeof window === 'undefined') return fallback
@@ -138,6 +150,7 @@ const normalizeShapes = (shapes: Shape[]) => shapes.map(normalizeShape)
 function App() {
   const clientId = useMemo(() => randomId(), [])
 
+  const [theme, setTheme] = useState<Theme>(() => getPreferredTheme())
   const [userName, setUserName] = useState(() => {
     const stored = loadFromStorage(STORAGE_KEYS.user, '')
     if (stored) return stored
@@ -179,6 +192,12 @@ function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.user, userName)
   }, [userName])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.documentElement.setAttribute('data-theme', theme)
+    saveToStorage(STORAGE_KEYS.theme, theme)
+  }, [theme])
 
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
@@ -257,6 +276,10 @@ function App() {
     },
     [channelRef],
   )
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }, [])
 
   const saveStateForUndo = useCallback(() => {
     if (isUndoRedoRef.current) {
@@ -642,7 +665,7 @@ function App() {
               y={shape.y}
               width={width}
               height={height}
-              fill="rgba(15,23,42,0.25)"
+              fill="var(--color-table-fill)"
               stroke={shape.stroke}
               strokeWidth={1.5}
               rx={4}
@@ -667,7 +690,7 @@ function App() {
   return (
     <div className="app-shell">
       <header className="top-bar">
-      <div>
+        <div>
           <p className="app-eyebrow">Realtime dashboard</p>
           <h1>Collaborative Whiteboard</h1>
           <p className="app-subtitle">
@@ -675,14 +698,28 @@ function App() {
             track every interaction in the activity stream.
           </p>
         </div>
-        <div className="user-badge">
-          <label htmlFor="userName">Display name</label>
-          <input
-            id="userName"
-            value={userName}
-            onChange={(event) => setUserName(event.target.value.slice(0, 32))}
-            placeholder="Your name"
-          />
+        <div className="header-actions">
+          <div className="user-badge">
+            <label htmlFor="userName">Display name</label>
+            <input
+              id="userName"
+              value={userName}
+              onChange={(event) => setUserName(event.target.value.slice(0, 32))}
+              placeholder="Your name"
+            />
+          </div>
+          <div className="theme-toggle">
+            <label htmlFor="themeToggle">Appearance</label>
+            <button
+              id="themeToggle"
+              type="button"
+              className="theme-toggle-btn"
+              onClick={toggleTheme}
+              aria-pressed={theme === 'dark'}
+            >
+              {theme === 'dark' ? '🌞 Light mode' : '🌙 Dark mode'}
+            </button>
+          </div>
         </div>
       </header>
 

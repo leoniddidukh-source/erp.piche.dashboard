@@ -3,12 +3,95 @@
     BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #e2e8f0;
-  background-color: #020617;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+  --gradient-app: radial-gradient(circle at top, #0f172a, #020617 65%);
+  --color-body: #020617;
+  --color-text-primary: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #cbd5f5;
+  --color-accent: #38bdf8;
+  --color-top-border: rgba(148, 163, 184, 0.15);
+  --color-input-bg: rgba(15, 23, 42, 0.6);
+  --color-input-border: rgba(148, 163, 184, 0.35);
+  --color-panel-bg: rgba(15, 23, 42, 0.6);
+  --color-panel-border: rgba(148, 163, 184, 0.2);
+  --color-panel-title: #94a3b8;
+  --color-tool-bg: rgba(148, 163, 184, 0.12);
+  --color-tool-active-border: #22d3ee;
+  --color-tool-active-bg: rgba(34, 211, 238, 0.2);
+  --color-control-label: #cbd5f5;
+  --color-danger-bg: rgba(248, 113, 113, 0.15);
+  --color-danger-border: rgba(248, 113, 113, 0.4);
+  --color-danger-text: #fecaca;
+  --color-ghost-border: rgba(148, 163, 184, 0.3);
+  --color-ghost-hover-bg: rgba(148, 163, 184, 0.1);
+  --color-ghost-hover-border: rgba(148, 163, 184, 0.4);
+  --color-board-border: rgba(15, 23, 42, 0.9);
+  --color-board-bg: #0b1121;
+  --color-board-grid: rgba(148, 163, 184, 0.05);
+  --color-board-shadow: rgba(148, 163, 184, 0.08);
+  --color-path-shadow: rgba(15, 23, 42, 0.6);
+  --color-table-fill: rgba(15, 23, 42, 0.25);
+  --color-table-text: #e2e8f0;
+  --color-history-meta: #94a3b8;
+  --color-history-user: #94a3b8;
+  --color-history-divider: rgba(148, 163, 184, 0.1);
+  --color-scroll-track: rgba(15, 23, 42, 0.6);
+  --color-scroll-thumb: rgba(148, 163, 184, 0.3);
+  --color-scroll-thumb-hover: rgba(148, 163, 184, 0.5);
+  --color-scroll-thumb-border: rgba(15, 23, 42, 0.6);
+  --color-theme-toggle-bg: rgba(148, 163, 184, 0.12);
+  --color-theme-toggle-border: rgba(148, 163, 184, 0.3);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --gradient-app: radial-gradient(circle at top, #f8fafc, #e2e8f0 70%);
+  --color-body: #f1f5f9;
+  --color-text-primary: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #475569;
+  --color-accent: #0284c7;
+  --color-top-border: rgba(15, 23, 42, 0.08);
+  --color-input-bg: #f8fafc;
+  --color-input-border: rgba(15, 23, 42, 0.12);
+  --color-panel-bg: #ffffff;
+  --color-panel-border: rgba(15, 23, 42, 0.08);
+  --color-panel-title: #64748b;
+  --color-tool-bg: rgba(15, 23, 42, 0.05);
+  --color-tool-active-border: #0ea5e9;
+  --color-tool-active-bg: rgba(14, 165, 233, 0.15);
+  --color-control-label: #0f172a;
+  --color-danger-bg: rgba(248, 113, 113, 0.12);
+  --color-danger-border: rgba(239, 68, 68, 0.35);
+  --color-danger-text: #b91c1c;
+  --color-ghost-border: rgba(15, 23, 42, 0.15);
+  --color-ghost-hover-bg: rgba(15, 23, 42, 0.06);
+  --color-ghost-hover-border: rgba(15, 23, 42, 0.3);
+  --color-board-border: rgba(15, 23, 42, 0.15);
+  --color-board-bg: #f8fafc;
+  --color-board-grid: rgba(15, 23, 42, 0.07);
+  --color-board-shadow: rgba(2, 6, 23, 0.06);
+  --color-path-shadow: rgba(15, 23, 42, 0.2);
+  --color-table-fill: rgba(2, 6, 23, 0.06);
+  --color-table-text: #0f172a;
+  --color-history-meta: #475569;
+  --color-history-user: #475569;
+  --color-history-divider: rgba(15, 23, 42, 0.08);
+  --color-scroll-track: rgba(148, 163, 184, 0.2);
+  --color-scroll-thumb: rgba(100, 116, 139, 0.6);
+  --color-scroll-thumb-hover: rgba(51, 65, 85, 0.8);
+  --color-scroll-thumb-border: rgba(241, 245, 249, 0.9);
+  --color-theme-toggle-bg: rgba(2, 6, 23, 0.04);
+  --color-theme-toggle-border: rgba(15, 23, 42, 0.2);
 }
 
 *,
@@ -20,7 +103,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #020617;
+  background-color: var(--color-body);
+  color: var(--color-text-primary);
 }
 
 #root {
@@ -39,7 +123,7 @@ button {
 /* Custom scrollbar styling */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.3) rgba(15, 23, 42, 0.6);
+  scrollbar-color: var(--color-scroll-thumb) var(--color-scroll-track);
 }
 
 *::-webkit-scrollbar {
@@ -48,20 +132,20 @@ button {
 }
 
 *::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--color-scroll-track);
   border-radius: 5px;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
+  background: var(--color-scroll-thumb);
   border-radius: 5px;
-  border: 2px solid rgba(15, 23, 42, 0.6);
+  border: 2px solid var(--color-scroll-thumb-border);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: var(--color-scroll-thumb-hover);
 }
 
 *::-webkit-scrollbar-corner {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--color-scroll-track);
 }
