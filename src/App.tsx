@@ -309,6 +309,19 @@ function App() {
 
   const [isDrawing, setIsDrawing] = useState(false)
   const [tempPoints, setTempPoints] = useState<Point[]>([])
+  const [textEditor, setTextEditor] = useState<{
+    id: string
+    x: number
+    y: number
+    value: string
+  } | null>(null)
+  const [tableEditor, setTableEditor] = useState<{
+    id: string
+    x: number
+    y: number
+    rows: number
+    cols: number
+  } | null>(null)
 
   const boardRef = useRef<HTMLDivElement | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
@@ -329,6 +342,8 @@ function App() {
     startPointer: Point
     startBounds: ShapeBounds
   } | null>(null)
+  const textInputRef = useRef<HTMLTextAreaElement | null>(null)
+  const tableRowsRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     shapesRef.current = shapes
@@ -343,6 +358,32 @@ function App() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.user, userName)
   }, [userName])
+
+  useEffect(() => {
+    if (textEditor && tool === 'text') {
+      requestAnimationFrame(() => {
+        textInputRef.current?.focus()
+      })
+    }
+  }, [textEditor, tool])
+
+  useEffect(() => {
+    if (tool !== 'text') {
+      setTextEditor(null)
+    }
+    if (tool !== 'table') {
+      setTableEditor(null)
+    }
+  }, [tool])
+
+  useEffect(() => {
+    if (tableEditor && tool === 'table') {
+      requestAnimationFrame(() => {
+        tableRowsRef.current?.focus()
+        tableRowsRef.current?.select()
+      })
+    }
+  }, [tableEditor, tool])
 
   useEffect(() => {
     if (typeof document === 'undefined') return
@@ -706,6 +747,38 @@ function App() {
     [applyShapeUpdate, userName],
   )
 
+  const finalizeTextEditor = useCallback(
+    (shouldCommit: boolean) => {
+      setTextEditor((current) => {
+        if (!current) return null
+        if (shouldCommit) {
+          const trimmed = current.value.trim()
+          if (trimmed) {
+            const shape: TextShape = {
+              id: current.id,
+              type: 'text',
+              createdAt: getTimestamp(),
+              createdBy: userName,
+              x: current.x,
+              y: current.y,
+              text: trimmed,
+              color,
+              fontSize: DEFAULT_FONT_SIZE,
+            }
+            commitShape(shape, `${userName} added text "${shape.text}"`)
+          }
+        }
+        return null
+      })
+    },
+    [color, commitShape, userName],
+  )
+
+  const handleTextEditorChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const nextValue = event.target.value
+    setTextEditor((current) => (current ? { ...current, value: nextValue } : current))
+  }, [])
+
   const getPointerPosition = useCallback((clientX: number, clientY: number) => {
     const board = boardRef.current
     if (!board) return null
@@ -727,6 +800,10 @@ function App() {
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (tool === 'move' || tool === 'resize') return
+    if (tool === 'text' && textEditor) {
+      finalizeTextEditor(true)
+    }
+
     const point = getRelativePoint(event)
     if (!point) return
 
@@ -762,22 +839,12 @@ function App() {
         return
       }
 
-      const text = window.prompt('Text to place on the board?')
-      if (!text?.trim()) return
-
-      const shape: TextShape = {
+      setTextEditor({
         id: randomId(),
-        type: 'text',
-        createdAt: getTimestamp(),
-        createdBy: userName,
         x: point.x,
         y: point.y,
-        text: text.trim(),
-        color,
-        fontSize: DEFAULT_FONT_SIZE,
-      }
-
-      commitShape(shape, `${userName} added text "${shape.text}"`)
+        value: '',
+      })
       return
     }
 
@@ -1349,6 +1416,29 @@ function App() {
                 />
               )}
             </svg>
+            {textEditor && tool === 'text' && (
+              <textarea
+                ref={textInputRef}
+                className="text-editor"
+                style={{
+                  left: textEditor.x,
+                  top: Math.max(textEditor.y - DEFAULT_FONT_SIZE * 1.2, 0),
+                }}
+                value={textEditor.value}
+                onChange={handleTextEditorChange}
+                onBlur={() => finalizeTextEditor(true)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault()
+                    finalizeTextEditor(true)
+                  } else if (event.key === 'Escape') {
+                    event.preventDefault()
+                    finalizeTextEditor(false)
+                  }
+                }}
+                placeholder="Type here..."
+              />
+            )}
           </div>
         </div>
 

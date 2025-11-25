@@ -54,7 +54,7 @@
       <option name="presentableId" value="Default" />
       <updated>1763994284560</updated>
       <workItem from="1763994285669" duration="2159000" />
-      <workItem from="1764056558512" duration="7457000" />
+      <workItem from="1764056558512" duration="7830000" />
     </task>
     <task id="LOCAL-00001" summary="Added scrolls">
       <option name="closed" value="true" />
@@ -144,7 +144,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764070464675</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="Added Eraser tool">
+      <option name="closed" value="true" />
+      <created>1764071072466</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1764071072466</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
