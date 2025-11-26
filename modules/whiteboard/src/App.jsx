@@ -7,6 +7,15 @@ import React, {
 } from 'react';
 import './App.css';
 
+// Lazy import Firebase to avoid Module Federation eager consumption issues
+let firebaseInitialized = false;
+const initializeFirebase = () => {
+  if (firebaseInitialized) return;
+  import('./firebase').then(() => {
+    firebaseInitialized = true;
+  });
+};
+
 const STORAGE_KEYS = {
   shapes: 'dashboard.whiteboard.shapes',
   history: 'dashboard.whiteboard.history',
@@ -92,6 +101,11 @@ const App = () => {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.user, userName);
   }, [userName]);
+
+  // Initialize Firebase lazily after component mount
+  useEffect(() => {
+    initializeFirebase();
+  }, []);
 
   useEffect(() => {
     if (

@@ -4,9 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added Pencil changes">
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
+    <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added changes">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/whiteboard/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/whiteboard/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/whiteboard/src/App.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/src/App.jsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/whiteboard/webpack.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/webpack.config.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -15,9 +17,22 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="Git.Settings">
+    <favorite-branches>
+      <branch-storage>
+        <map>
+          <entry type="LOCAL">
+            <value>
+              <list>
+                <branch-info repo="$PROJECT_DIR$" source="dashboard-module" />
+              </list>
+            </value>
+          </entry>
+        </map>
+      </branch-storage>
+    </favorite-branches>
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="main-with-updates" />
+        <entry key="$PROJECT_DIR$" value="dashboard-module" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -30,18 +45,19 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;git-widget-placeholder&quot;: &quot;dashboard-module&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;D:\\erp.piche.dashboard\\node_modules\\typescript\\lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "git-widget-placeholder": "whiteboard-module-with-firebase",
+    "last_opened_file_path": "D:/erp.piche.host",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "ts.external.directory.path": "D:\\erp.piche.dashboard\\node_modules\\typescript\\lib",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -59,6 +75,7 @@
       <updated>1763994284560</updated>
       <workItem from="1763994285669" duration="2159000" />
       <workItem from="1764056558512" duration="9998000" />
+      <workItem from="1764151624949" duration="812000" />
     </task>
     <task id="LOCAL-00001" summary="Added scrolls">
       <option name="closed" value="true" />
@@ -188,7 +205,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764077839176</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="Added changes">
+      <option name="closed" value="true" />
+      <created>1764150004434</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1764150004434</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -208,6 +233,7 @@
     <MESSAGE value="Added Text changes" />
     <MESSAGE value="Added Table changes" />
     <MESSAGE value="Added Pencil changes" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added Pencil changes" />
+    <MESSAGE value="Added changes" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added changes" />
   </component>
 </project>

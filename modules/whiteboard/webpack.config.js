@@ -21,8 +21,15 @@ module.exports = (env, argv) => {
     output: {
       path: path.resolve(__dirname, 'dist'),
       filename: isProduction ? '[name].[contenthash].js' : '[name].js',
-      // Use environment variable for deployment URL, fallback to 'auto' for dev
-      publicPath: process.env.PUBLIC_PATH || 'auto',
+      // Use environment variable for deployment URL, or explicit localhost for dev
+      publicPath: (() => {
+        if (process.env.PUBLIC_PATH) {
+          // Remove any trailing/leading whitespace and ensure it ends with /
+          const path = process.env.PUBLIC_PATH.trim();
+          return path.endsWith('/') ? path : path + '/';
+        }
+        return isProduction ? '/' : 'http://localhost:3007/';
+      })(),
       clean: true,
     },
     resolve: {
@@ -54,8 +61,18 @@ module.exports = (env, argv) => {
           './App': './src/App',
         },
         shared: {
-          react: { singleton: true, requiredVersion: '^18.2.0' },
-          'react-dom': { singleton: true, requiredVersion: '^18.2.0' },
+          react: { 
+            singleton: true, 
+            requiredVersion: '^18.2.0',
+            eager: true, // Allow eager loading for standalone mode
+            strictVersion: false,
+          },
+          'react-dom': { 
+            singleton: true, 
+            requiredVersion: '^18.2.0',
+            eager: true, // Allow eager loading for standalone mode
+            strictVersion: false,
+          },
         },
       }),
       new HtmlWebpackPlugin({
