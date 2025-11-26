@@ -1,5 +1,6 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ModuleFederationPlugin = require('webpack/lib/container/ModuleFederationPlugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path');
 
 module.exports = (env, argv) => {
@@ -91,6 +92,15 @@ module.exports = (env, argv) => {
               minifyURLs: true,
             }
           : false,
+      }),
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: 'public/favicon.svg',
+            to: 'favicon.svg',
+            noErrorOnMissing: true,
+          },
+        ],
       }),
     ],
     optimization: {
