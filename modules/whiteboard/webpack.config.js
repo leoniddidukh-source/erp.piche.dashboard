@@ -21,7 +21,8 @@ module.exports = (env, argv) => {
     output: {
       path: path.resolve(__dirname, 'dist'),
       filename: isProduction ? '[name].[contenthash].js' : '[name].js',
-      publicPath: 'auto',
+      // Use environment variable for deployment URL, fallback to 'auto' for dev
+      publicPath: process.env.PUBLIC_PATH || 'auto',
       clean: true,
     },
     resolve: {
