@@ -6,14 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added changes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/firebase.json" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/firebase.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/public/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/public/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/src/App.css" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/src/App.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/src/App.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/src/App.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/src/index.css" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/src/index.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/webpack.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/webpack.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/whiteboard/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,19 +43,19 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;git-widget-placeholder&quot;: &quot;whiteboard-module-with-firebase&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/erp.piche.host&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;D:\\erp.piche.dashboard\\node_modules\\typescript\\lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "git-widget-placeholder": "whiteboard-module-with-firebase",
+    "last_opened_file_path": "D:/erp.piche.whiteboard",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "ts.external.directory.path": "D:\\erp.piche.dashboard\\node_modules\\typescript\\lib",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -217,7 +211,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764150004434</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="Added changes">
+      <option name="closed" value="true" />
+      <created>1764156830235</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1764156830235</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
