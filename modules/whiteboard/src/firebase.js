@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB6bKkru-KK9aF8RsIDDP6Oy0P6TKKMKvo",
+  apiKey: "",
   authDomain: "hotcode-whiteboard-module.firebaseapp.com",
   projectId: "hotcode-whiteboard-module",
   storageBucket: "hotcode-whiteboard-module.firebasestorage.app",

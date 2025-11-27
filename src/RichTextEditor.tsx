@@ -31,6 +31,7 @@ interface RichTextEditorProps {
   onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void
   style?: React.CSSProperties
   placeholder?: string
+  variant?: 'default' | 'compact'
 }
 
 export interface RichTextEditorHandle {
@@ -46,6 +47,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       onKeyDown,
       style,
       placeholder = 'Type here...',
+      variant = 'default',
     },
     ref,
   ) {
@@ -226,7 +228,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     }, [onBlur])
 
   return (
-    <div className="rich-text-editor-wrapper" style={style}>
+    <div className="rich-text-editor-wrapper" data-variant={variant} style={style}>
       <div
         ref={toolbarRef}
         className="rich-text-toolbar"

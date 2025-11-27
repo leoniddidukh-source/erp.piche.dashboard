@@ -11,6 +11,22 @@
   overflow: hidden;
 }
 
+.rich-text-editor-wrapper[data-variant='compact'] {
+  min-width: 140px;
+  min-height: 40px;
+  box-shadow: 0 3px 14px rgba(15, 23, 42, 0.2);
+}
+
+.rich-text-editor-wrapper[data-variant='compact'] .rich-text-toolbar {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.rich-text-editor-wrapper[data-variant='compact'] .rich-text-editor {
+  min-height: 28px;
+  padding: 6px 8px;
+}
+
 .rich-text-toolbar {
   display: flex;
   gap: 2px;

@@ -192,6 +192,28 @@ const extractPlainText = (html: string): string => {
   return tempDiv.textContent || tempDiv.innerText || ''
 }
 
+const HTML_TAG_REGEX = /<\/?[a-z][\s\S]*>/i
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const normalizeHtmlContent = (value: string): string => {
+  if (!value) return ''
+  if (HTML_TAG_REGEX.test(value)) return value
+  return escapeHtml(value).replace(/\n/g, '<br/>')
+}
+
+const sanitizeHtmlValue = (value: string): string => {
+  const normalized = normalizeHtmlContent(value.trim())
+  const plain = extractPlainText(normalized).trim()
+  return plain ? normalized : ''
+}
+
 const getShapeBounds = (shape: Shape): ShapeBounds => {
   switch (shape.type) {
     case 'text': {
@@ -455,6 +477,8 @@ function App() {
     col: number
     x: number
     y: number
+    width: number
+    height: number
     value: string
   } | null>(null)
   const [tableEditor, setTableEditor] = useState<{
@@ -485,7 +509,7 @@ function App() {
     startBounds: ShapeBounds
   } | null>(null)
   const textInputRef = useRef<RichTextEditorHandle | null>(null)
-  const cellInputRef = useRef<HTMLInputElement | null>(null)
+  const cellInputRef = useRef<RichTextEditorHandle | null>(null)
   const tableRowsRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -534,9 +558,6 @@ function App() {
     if (cellEditor && tool === 'text') {
       requestAnimationFrame(() => {
         cellInputRef.current?.focus()
-        if (cellEditor.value === '') {
-          cellInputRef.current?.select()
-        }
       })
     }
   }, [cellEditor?.tableId, cellEditor?.row, cellEditor?.col, tool])
@@ -895,7 +916,7 @@ function App() {
   const updateTableCell = useCallback(
     (tableShape: TableShape, row: number, col: number, value: string, options?: { color?: string }) => {
       const normalizedTable = ensureTableCells(tableShape)
-      const sanitizedValue = value.trim()
+      const sanitizedValue = sanitizeHtmlValue(value)
       const targetRow = normalizedTable.cells[row]
       if (!targetRow) return
       const existingCell = targetRow[col]
@@ -967,17 +988,21 @@ function App() {
     setTextEditor((current) => (current ? { ...current, value } : current))
   }, [])
 
+  const handleCellEditorChange = useCallback((value: string) => {
+    setCellEditor((current) => (current ? { ...current, value } : current))
+  }, [])
+
   const finalizeCellEditor = useCallback(
     (shouldCommit: boolean) => {
       setCellEditor((current) => {
         if (!current) return null
         if (shouldCommit) {
-          const trimmed = current.value.trim()
+          const sanitized = sanitizeHtmlValue(current.value)
           const tableShape = shapesRef.current.find(
             (shape): shape is TableShape => shape.id === current.tableId && shape.type === 'table',
           )
           if (tableShape) {
-            updateTableCell(tableShape, current.row, current.col, trimmed, { color })
+            updateTableCell(tableShape, current.row, current.col, sanitized, { color })
           }
         }
         return null
@@ -1088,13 +1113,17 @@ function App() {
       if (tableCell) {
         const { shape, row, col } = tableCell
         const cellValue = shape.cells[row]?.[col]?.value ?? ''
+        const cellX = shape.x + col * shape.cellWidth
+        const cellY = shape.y + row * shape.cellHeight
         setCellEditor({
           tableId: shape.id,
           row,
           col,
-          x: shape.x + col * shape.cellWidth + 4,
-          y: shape.y + row * shape.cellHeight + 4,
-          value: cellValue,
+          x: cellX,
+          y: cellY,
+          width: shape.cellWidth,
+          height: shape.cellHeight,
+          value: normalizeHtmlContent(cellValue),
         })
         return
       }
@@ -1713,21 +1742,25 @@ function App() {
             const cellValue = cell?.value
             if (!cellValue) continue
             const cellColor = cell?.color ?? DEFAULT_CELL_COLOR
-            const cx = shape.x + col * shape.cellWidth + shape.cellWidth / 2
-            const cy = shape.y + row * shape.cellHeight + shape.cellHeight / 2 + 4
+            const cellX = shape.x + col * shape.cellWidth
+            const cellY = shape.y + row * shape.cellHeight
+            const cellHtml = normalizeHtmlContent(cellValue)
             textNodes.push(
-              <text
+              <foreignObject
                 key={`cell-${row}-${col}`}
-                x={cx}
-                y={cy}
-                className="table-cell-text"
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill={cellColor}
-                style={{ fill: cellColor }}
+                x={cellX}
+                y={cellY}
+                width={shape.cellWidth}
+                height={shape.cellHeight}
+                pointerEvents="none"
               >
-                {cellValue}
-              </text>,
+                <div
+                  className="table-cell-html"
+                  style={{ color: cellColor }}
+                  xmlns="http://www.w3.org/1999/xhtml"
+                  dangerouslySetInnerHTML={{ __html: cellHtml }}
+                />
+              </foreignObject>,
             )
           }
         }
@@ -2101,29 +2134,26 @@ function App() {
               />
             )}
             {cellEditor && tool === 'text' && (
-              <input
+              <RichTextEditor
                 ref={cellInputRef}
-                className="cell-editor"
-                style={{
-                  left: cellEditor.x,
-                  top: cellEditor.y,
-                }}
-                onPointerDown={(event) => event.stopPropagation()}
+                variant="compact"
                 value={cellEditor.value}
-                onChange={(event) =>
-                  setCellEditor((current) =>
-                    current ? { ...current, value: event.target.value } : current,
-                  )
-                }
+                onChange={handleCellEditorChange}
                 onBlur={() => finalizeCellEditor(true)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
+                  if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
                     event.preventDefault()
                     finalizeCellEditor(true)
                   } else if (event.key === 'Escape') {
                     event.preventDefault()
                     finalizeCellEditor(false)
                   }
+                }}
+                style={{
+                  left: cellEditor.x,
+                  top: cellEditor.y,
+                  width: Math.max(cellEditor.width, 220),
+                  minWidth: Math.max(cellEditor.width, 220),
                 }}
                 placeholder="Cell text"
               />
