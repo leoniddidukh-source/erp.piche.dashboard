@@ -215,33 +215,41 @@
   background: var(--color-board-bg);
   overflow: auto;
   position: relative;
-  min-height: 640px;
+  min-height: auto;
+  max-height: calc(100vh - 200px);
   box-shadow: inset 0 0 0 1px var(--color-board-shadow);
 }
 
 .board {
-  width: 200%;
-  height: 200%;
+  position: relative;
   min-width: 100%;
-  min-height: 100%;
+  min-height: 200%;
   background-image: repeating-linear-gradient(
-      0deg,
-      var(--color-board-grid),
-      var(--color-board-grid) 1px,
-      transparent 1px,
-      transparent 40px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      var(--color-board-grid),
-      var(--color-board-grid) 1px,
-      transparent 1px,
-      transparent 40px
-    );
+          0deg,
+          var(--color-board-grid),
+          var(--color-board-grid) 1px,
+          transparent 1px,
+          transparent 40px
+  ),
+  repeating-linear-gradient(
+          90deg,
+          var(--color-board-grid),
+          var(--color-board-grid) 1px,
+          transparent 1px,
+          transparent 40px
+  );
 }
 
 .board {
   cursor: crosshair;
+}
+
+.board.text-mode {
+  cursor: text;
+}
+
+.board.text-editing {
+  cursor: text;
 }
 
 .board.move-mode {
@@ -258,8 +266,8 @@
 
 .board.eraser-mode {
   cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%22%23ffffff%22 d=%22M3 15.5L10.5 8l5.5 5.5l-7.5 7.5H3z%22/%3E%3C/svg%3E')
-      4 20,
-    crosshair;
+  4 20,
+  crosshair;
 }
 
 .movable-shape {
@@ -301,23 +309,6 @@
 }
 
 .text-editor::placeholder {
-  color: var(--color-text-muted);
-}
-
-.cell-editor {
-  position: absolute;
-  min-width: 80px;
-  padding: 0.25rem 0.4rem;
-  border-radius: 4px;
-  border: 1px solid var(--color-input-border);
-  background: var(--color-panel-bg);
-  color: var(--color-text-primary);
-  font: inherit;
-  outline: none;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
-}
-
-.cell-editor::placeholder {
   color: var(--color-text-muted);
 }
 
@@ -378,11 +369,20 @@
   font-weight: 500;
 }
 
-.table-cell-text {
+.table-cell-html {
   font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 500;
-  fill: var(--color-table-text);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
+  padding: 4px;
+  box-sizing: border-box;
+  word-break: break-word;
   pointer-events: none;
 }
 
@@ -496,4 +496,3 @@
     flex-direction: column;
   }
 }
-

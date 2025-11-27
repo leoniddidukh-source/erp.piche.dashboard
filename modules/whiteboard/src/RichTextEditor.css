@@ -5,34 +5,25 @@
   min-width: 200px;
   min-height: 60px;
   border-radius: 8px;
-  border: 1px solid var(--color-input-border);
-  background: var(--color-panel-bg);
+  border: 1px solid var(--color-input-border, #334155);
+  background: var(--color-panel-bg, #0f172a);
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.25);
   overflow: hidden;
+  z-index: 10;
 }
 
 .rich-text-editor-wrapper[data-variant='compact'] {
-  min-width: 140px;
+  min-width: 160px;
   min-height: 40px;
   box-shadow: 0 3px 14px rgba(15, 23, 42, 0.2);
-}
-
-.rich-text-editor-wrapper[data-variant='compact'] .rich-text-toolbar {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-}
-
-.rich-text-editor-wrapper[data-variant='compact'] .rich-text-editor {
-  min-height: 28px;
-  padding: 6px 8px;
 }
 
 .rich-text-toolbar {
   display: flex;
   gap: 2px;
   padding: 4px;
-  border-bottom: 1px solid var(--color-input-border);
-  background: var(--color-panel-bg);
+  border-bottom: 1px solid var(--color-input-border, #334155);
+  background: var(--color-panel-bg, #0f172a);
   flex-shrink: 0;
 }
 
@@ -46,7 +37,7 @@
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--color-text-primary);
+  color: var(--color-text-primary, #f8fafc);
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
@@ -54,30 +45,18 @@
 }
 
 .toolbar-btn:hover {
-  background: var(--color-input-bg);
+  background: var(--color-input-bg, #1e293b);
 }
 
 .toolbar-btn.active {
-  background: var(--color-tool-active-bg);
+  background: var(--color-tool-active-bg, #1d4ed8);
   color: var(--color-tool-active-text, #ffffff);
-}
-
-.toolbar-btn strong {
-  font-weight: 700;
-}
-
-.toolbar-btn em {
-  font-style: italic;
-}
-
-.toolbar-btn u {
-  text-decoration: underline;
 }
 
 .toolbar-divider {
   width: 1px;
   height: 24px;
-  background: var(--color-input-border);
+  background: var(--color-input-border, #334155);
   margin: 0 4px;
 }
 
@@ -86,12 +65,12 @@
   width: 34px;
   height: 28px;
   border-radius: 6px;
-  border: 1px solid var(--color-input-border);
+  border: 1px solid var(--color-input-border, #334155);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: var(--color-input-bg);
+  background: var(--color-input-bg, #1e293b);
 }
 
 .toolbar-color-picker {
@@ -116,7 +95,7 @@
   min-height: 32px;
   padding: 8px 10px;
   outline: none;
-  color: var(--color-text-primary);
+  color: var(--color-text-primary, #f8fafc);
   font: inherit;
   overflow-y: auto;
   overflow-x: hidden;
@@ -126,24 +105,8 @@
 
 .rich-text-editor:empty:before {
   content: attr(data-placeholder);
-  color: var(--color-text-muted);
+  color: var(--color-text-muted, #94a3b8);
   pointer-events: none;
-}
-
-.rich-text-editor:focus {
-  outline: none;
-}
-
-.rich-text-editor strong {
-  font-weight: 700;
-}
-
-.rich-text-editor em {
-  font-style: italic;
-}
-
-.rich-text-editor u {
-  text-decoration: underline;
 }
 
 .rich-text-editor ul,

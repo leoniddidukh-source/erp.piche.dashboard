@@ -1,10 +1,13 @@
+const path = require('path');
+const webpack = require('webpack');
+const dotenv = require('dotenv');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ModuleFederationPlugin = require('webpack/lib/container/ModuleFederationPlugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const path = require('path');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
+  dotenv.config({ path: path.resolve(__dirname, '.env') });
 
   return {
     entry: './src/index.js',
@@ -92,6 +95,16 @@ module.exports = (env, argv) => {
               minifyURLs: true,
             }
           : false,
+      }),
+      new webpack.DefinePlugin({
+        'process.env.FIREBASE_API_KEY': JSON.stringify(process.env.FIREBASE_API_KEY || ''),
+        'process.env.FIREBASE_AUTH_DOMAIN': JSON.stringify(process.env.FIREBASE_AUTH_DOMAIN || ''),
+        'process.env.FIREBASE_PROJECT_ID': JSON.stringify(process.env.FIREBASE_PROJECT_ID || ''),
+        'process.env.FIREBASE_STORAGE_BUCKET': JSON.stringify(process.env.FIREBASE_STORAGE_BUCKET || ''),
+        'process.env.FIREBASE_MESSAGING_SENDER_ID': JSON.stringify(
+          process.env.FIREBASE_MESSAGING_SENDER_ID || '',
+        ),
+        'process.env.FIREBASE_APP_ID': JSON.stringify(process.env.FIREBASE_APP_ID || ''),
       }),
       new CopyWebpackPlugin({
         patterns: [
