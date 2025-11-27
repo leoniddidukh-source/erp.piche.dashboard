@@ -245,7 +245,7 @@
 }
 
 .board.text-mode {
-  cursor: crosshair;
+  cursor: text;
 }
 
 .board.text-editing {
