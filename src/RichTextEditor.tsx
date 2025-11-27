@@ -101,19 +101,6 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       [],
     )
 
-    const applyTextColor = useCallback(
-      (color: string) => {
-        restoreSelection()
-        editorRef.current?.focus()
-        document.execCommand('foreColor', false, color)
-        applyColorToListAncestors(color)
-        editorRef.current?.focus()
-        handleInput()
-        saveSelection()
-      },
-      [applyColorToListAncestors, handleInput, restoreSelection, saveSelection],
-    )
-
     const saveSelection = useCallback(() => {
       if (typeof document === 'undefined') return
       if (!isSelectionInsideEditor()) return
@@ -142,11 +129,24 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   }, [value])
 
     const handleInput = useCallback(() => {
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML)
-    }
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML)
+      }
       saveSelection()
     }, [onChange, saveSelection])
+
+    const applyTextColor = useCallback(
+      (color: string) => {
+        restoreSelection()
+        editorRef.current?.focus()
+        document.execCommand('foreColor', false, color)
+        applyColorToListAncestors(color)
+        editorRef.current?.focus()
+        handleInput()
+        saveSelection()
+      },
+      [applyColorToListAncestors, handleInput, restoreSelection, saveSelection],
+    )
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
