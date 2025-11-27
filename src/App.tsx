@@ -167,6 +167,11 @@ const MIN_RESIZE_DIMENSION = 16
 const MIN_PATH_DIMENSION = 4
 const ERASER_RADIUS = 18
 const DEFAULT_CELL_COLOR = '#e2e8f0'
+const DEFAULT_BOARD_WIDTH = 2400
+const DEFAULT_BOARD_HEIGHT = 1600
+const BOARD_MARGIN = 400
+const AUTO_SCROLL_EDGE = 80
+const AUTO_SCROLL_SPEED = 40
 
 const buildPencilCursor = (hexColor: string) => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="${hexColor}" d="M2 17.75V22h4.25L19.81 8.44l-4.24-4.24zm19.71-11.04a1 1 0 0 0 0-1.41l-2.01-2.01a1 1 0 0 0-1.41 0l-1.83 1.83l4.24 4.24z"/></svg>`
@@ -489,7 +494,9 @@ function App() {
     cols: number
   } | null>(null)
 
+  const boardWrapperRef = useRef<HTMLDivElement | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
+  const boardSvgRef = useRef<SVGSVGElement | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const shapesRef = useRef<Shape[]>(shapes)
   const historyRef = useRef<HistoryItem[]>(history)
@@ -536,16 +543,6 @@ function App() {
 
 
   useEffect(() => {
-    if (tool !== 'text') {
-      setTextEditor(null)
-      setCellEditor(null)
-    }
-    if (tool !== 'table') {
-      setTableEditor(null)
-    }
-  }, [tool])
-
-  useEffect(() => {
     if (tableEditor && tool === 'table') {
       requestAnimationFrame(() => {
         tableRowsRef.current?.focus()
@@ -570,6 +567,59 @@ function App() {
 
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+
+  const handleToolChange = useCallback((nextTool: Tool) => {
+    setTool(nextTool)
+    if (nextTool !== 'text') {
+      setTextEditor(null)
+      setCellEditor(null)
+    }
+    if (nextTool !== 'table') {
+      setTableEditor(null)
+    }
+  }, [])
+
+  const boardDimensions = useMemo(() => {
+    let maxX = 0
+    let maxY = 0
+    for (const shape of shapes) {
+      const bounds = getShapeBounds(shape)
+      maxX = Math.max(maxX, bounds.maxX)
+      maxY = Math.max(maxY, bounds.maxY)
+    }
+    return {
+      width: Math.max(DEFAULT_BOARD_WIDTH, Math.ceil(maxX + BOARD_MARGIN)),
+      height: Math.max(DEFAULT_BOARD_HEIGHT, Math.ceil(maxY + BOARD_MARGIN)),
+    }
+  }, [shapes])
+
+  const autoScrollBoard = useCallback((point: Point | null) => {
+    const container = boardWrapperRef.current
+    if (!container || !point) return null
+    const relativeX = point.x - container.scrollLeft
+    const relativeY = point.y - container.scrollTop
+    let deltaX = 0
+    let deltaY = 0
+    if (relativeX < AUTO_SCROLL_EDGE) {
+      deltaX = -AUTO_SCROLL_SPEED
+    } else if (relativeX > container.clientWidth - AUTO_SCROLL_EDGE) {
+      deltaX = AUTO_SCROLL_SPEED
+    }
+    if (relativeY < AUTO_SCROLL_EDGE) {
+      deltaY = -AUTO_SCROLL_SPEED
+    } else if (relativeY > container.clientHeight - AUTO_SCROLL_EDGE) {
+      deltaY = AUTO_SCROLL_SPEED
+    }
+    if (deltaX !== 0 || deltaY !== 0) {
+      container.scrollBy({
+        left: deltaX,
+        top: deltaY,
+        behavior: 'auto',
+      })
+      return { deltaX, deltaY }
+    }
+    return null
+  }, [])
 
   useEffect(() => {
     const checkUndoRedo = () => {
@@ -657,9 +707,8 @@ function App() {
   const handleDownloadResult = useCallback(() => {
     if (typeof window === 'undefined') return
     const boardElement = boardRef.current
-    if (!boardElement) return
-    const svgElement = boardElement.querySelector('svg')
-    if (!svgElement) return
+    const svgElement = boardSvgRef.current
+    if (!boardElement || !svgElement) return
     const width = Math.max(Math.floor(boardElement.clientWidth), 1)
     const height = Math.max(Math.floor(boardElement.clientHeight), 1)
     const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement
@@ -1281,12 +1330,14 @@ function App() {
     if (isDrawingShape && tempShape) {
       const point = getRelativePoint(event)
       if (!point) return
+      autoScrollBoard(point)
       setTempShape((prev) => (prev ? { ...prev, current: point } : null))
       return
     }
     if (resizingShapeRef.current) {
       const position = getPointerPosition(event.clientX, event.clientY)
       if (!position) return
+      autoScrollBoard(position.point)
       const resizeState = resizingShapeRef.current
       const deltaX = position.point.x - resizeState.startPointer.x
       const deltaY = position.point.y - resizeState.startPointer.y
@@ -1396,6 +1447,7 @@ function App() {
     if (draggingShapeRef.current) {
       const position = getPointerPosition(event.clientX, event.clientY)
       if (!position) return
+      autoScrollBoard(position.point)
       const { id, size } = draggingShapeRef.current
       const offset = draggingShapeRef.current.offset
       const { point, bounds } = position
@@ -1405,19 +1457,17 @@ function App() {
           const nextX = point.x - offset.x
           const nextY = point.y - offset.y
           if (shape.type === 'table') {
-            const tableWidth = shape.cols * shape.cellWidth
-            const tableHeight = shape.rows * shape.cellHeight
             return {
               ...shape,
-              x: clamp(nextX, 0, Math.max(bounds.width - tableWidth, 0)),
-              y: clamp(nextY, 0, Math.max(bounds.height - tableHeight, 0)),
+              x: nextX,
+              y: nextY,
             }
           }
           if (shape.type === 'text') {
             return {
               ...shape,
-              x: clamp(nextX, 0, bounds.width),
-              y: clamp(nextY, 0, bounds.height),
+              x: nextX,
+              y: nextY,
             }
           }
           if (shape.type === 'path') {
@@ -1436,22 +1486,22 @@ function App() {
           if (shape.type === 'rectangle') {
             return {
               ...shape,
-              x: clamp(nextX, 0, Math.max(bounds.width - shape.width, 0)),
-              y: clamp(nextY, 0, Math.max(bounds.height - shape.height, 0)),
+              x: nextX,
+              y: nextY,
             }
           }
           if (shape.type === 'circle') {
             return {
               ...shape,
-              cx: clamp(point.x - offset.x + size.width / 2, shape.r, bounds.width - shape.r),
-              cy: clamp(point.y - offset.y + size.height / 2, shape.r, bounds.height - shape.r),
+              cx: point.x - offset.x + size.width / 2,
+              cy: point.y - offset.y + size.height / 2,
             }
           }
           if (shape.type === 'ellipse') {
             return {
               ...shape,
-              cx: clamp(point.x - offset.x + size.width / 2, shape.rx, bounds.width - shape.rx),
-              cy: clamp(point.y - offset.y + size.height / 2, shape.ry, bounds.height - shape.ry),
+              cx: point.x - offset.x + size.width / 2,
+              cy: point.y - offset.y + size.height / 2,
             }
           }
           if (shape.type === 'line') {
@@ -1460,10 +1510,10 @@ function App() {
             const deltaY = nextY - currentBounds.minY
             return {
               ...shape,
-              x1: clamp(shape.x1 + deltaX, 0, bounds.width),
-              y1: clamp(shape.y1 + deltaY, 0, bounds.height),
-              x2: clamp(shape.x2 + deltaX, 0, bounds.width),
-              y2: clamp(shape.y2 + deltaY, 0, bounds.height),
+              x1: shape.x1 + deltaX,
+              y1: shape.y1 + deltaY,
+              x2: shape.x2 + deltaX,
+              y2: shape.y2 + deltaY,
             }
           }
           return shape
@@ -1692,7 +1742,6 @@ function App() {
             }
           >
             <div
-              xmlns="http://www.w3.org/1999/xhtml"
               style={{
                 color: shape.color,
                 fontSize: `${shape.fontSize}px`,
@@ -1757,7 +1806,6 @@ function App() {
                 <div
                   className="table-cell-html"
                   style={{ color: cellColor }}
-                  xmlns="http://www.w3.org/1999/xhtml"
                   dangerouslySetInnerHTML={{ __html: cellHtml }}
                 />
               </foreignObject>,
@@ -1932,7 +1980,7 @@ function App() {
               <button
                 key={item}
                 className={`tool-btn ${tool === item ? 'active' : ''}`}
-                onClick={() => setTool(item)}
+                onClick={() => handleToolChange(item)}
               >
                 {item === 'pen' && '✏️ Pencil'}
                 {item === 'text' && '📝 Text'}
@@ -2019,7 +2067,7 @@ function App() {
           </button>
         </aside>
 
-        <div className="board-wrapper">
+        <div className="board-wrapper" ref={boardWrapperRef}>
           <div
             ref={boardRef}
             className={`board ${tool === 'move' ? 'move-mode' : ''} ${
@@ -2027,12 +2075,16 @@ function App() {
             } ${tool === 'eraser' ? 'eraser-mode' : ''} ${tool === 'text' ? 'text-mode' : ''} ${
               tool === 'text' && textEditor ? 'text-editing' : ''
             }`}
-            style={tool === 'pen' ? { cursor: buildPencilCursor(color) } : undefined}
+            style={{
+              width: boardDimensions.width,
+              height: boardDimensions.height,
+              ...(tool === 'pen' ? { cursor: buildPencilCursor(color) } : null),
+            }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
           >
-            <svg className="board-canvas">
+            <svg className="board-canvas" ref={boardSvgRef}>
               {shapes.map((shape) => renderShape(shape))}
               {isDrawing && tempPoints.length > 1 && (
                 <polyline
