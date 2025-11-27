@@ -6,8 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="00271373-cebf-4081-9636-0b65381f2017" name="Changes" comment="Added changes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/whiteboard/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/whiteboard/CONNECTION_GUIDE.md" beforeDir="false" afterPath="$PROJECT_DIR$/modules/whiteboard/CONNECTION_GUIDE.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,6 +44,7 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "whiteboard-module-with-firebase",
     "last_opened_file_path": "D:/erp.piche.whiteboard",
     "node.js.detected.package.eslint": "true",
@@ -74,6 +74,7 @@
       <workItem from="1763994285669" duration="2159000" />
       <workItem from="1764056558512" duration="9998000" />
       <workItem from="1764151624949" duration="812000" />
+      <workItem from="1764226552247" duration="1246000" />
     </task>
     <task id="LOCAL-00001" summary="Added scrolls">
       <option name="closed" value="true" />
@@ -219,7 +220,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764156830235</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="Added changes">
+      <option name="closed" value="true" />
+      <created>1764158471819</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1764158471819</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

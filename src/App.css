@@ -244,6 +244,14 @@
   cursor: crosshair;
 }
 
+.board.text-mode {
+  cursor: crosshair;
+}
+
+.board.text-editing {
+  cursor: text;
+}
+
 .board.move-mode {
   cursor: grab;
 }

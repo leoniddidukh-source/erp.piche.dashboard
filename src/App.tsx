@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import './App.css'
+import { RichTextEditor, type RichTextEditorHandle } from './RichTextEditor'
 
 type Tool = 'pen' | 'text' | 'table' | 'shapes' | 'move' | 'resize' | 'eraser'
 type ShapeType = 'rectangle' | 'circle' | 'line' | 'ellipse'
@@ -91,6 +92,17 @@ type LineShape = BaseShape & {
 
 type Shape = PathShape | TextShape | TableShape | RectangleShape | CircleShape | EllipseShape | LineShape
 
+type TextEditorState = {
+  id: string
+  x: number
+  y: number
+  value: string
+  mode: 'create' | 'edit'
+  shapeId?: string
+  originalColor?: string
+  fontSize?: number
+}
+
 type HistoryItem = {
   id: string
   timestamp: number
@@ -170,10 +182,21 @@ type ShapeBounds = {
   height: number
 }
 
+const extractPlainText = (html: string): string => {
+  if (typeof document === 'undefined') {
+    // Fallback for SSR or when document is not available
+    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+  }
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = html
+  return tempDiv.textContent || tempDiv.innerText || ''
+}
+
 const getShapeBounds = (shape: Shape): ShapeBounds => {
   switch (shape.type) {
     case 'text': {
-      const lines = shape.text.split('\n')
+      const plainText = extractPlainText(shape.text)
+      const lines = plainText.split('\n')
       const charWidth = shape.fontSize * 0.6
       const lineHeight = shape.fontSize * 1.2
       const maxLineLength = Math.max(...lines.map((line) => line.length), 1)
@@ -425,12 +448,7 @@ function App() {
 
   const [isDrawing, setIsDrawing] = useState(false)
   const [tempPoints, setTempPoints] = useState<Point[]>([])
-  const [textEditor, setTextEditor] = useState<{
-    id: string
-    x: number
-    y: number
-    value: string
-  } | null>(null)
+  const [textEditor, setTextEditor] = useState<TextEditorState | null>(null)
   const [cellEditor, setCellEditor] = useState<{
     tableId: string
     row: number
@@ -466,7 +484,7 @@ function App() {
     startPointer: Point
     startBounds: ShapeBounds
   } | null>(null)
-  const textInputRef = useRef<HTMLTextAreaElement | null>(null)
+  const textInputRef = useRef<RichTextEditorHandle | null>(null)
   const cellInputRef = useRef<HTMLInputElement | null>(null)
   const tableRowsRef = useRef<HTMLInputElement | null>(null)
 
@@ -492,13 +510,6 @@ function App() {
     }
   }, [textEditor, tool])
 
-  useEffect(() => {
-    if (textEditor && textInputRef.current) {
-      const textarea = textInputRef.current
-      textarea.style.height = 'auto'
-      textarea.style.height = `${Math.max(textarea.scrollHeight, 32)}px`
-    }
-  }, [textEditor?.value])
 
   useEffect(() => {
     if (tool !== 'text') {
@@ -913,31 +924,47 @@ function App() {
       setTextEditor((current) => {
         if (!current) return null
         if (shouldCommit) {
-          const trimmed = current.value.trim()
-          if (trimmed) {
-            const shape: TextShape = {
-              id: current.id,
-              type: 'text',
-              createdAt: getTimestamp(),
-              createdBy: userName,
-              x: current.x,
-              y: current.y,
-              text: trimmed,
-              color,
-              fontSize: DEFAULT_FONT_SIZE,
+          const htmlContent = current.value.trim()
+          const plainText = extractPlainText(htmlContent).trim()
+          if (plainText && htmlContent) {
+            if (current.mode === 'edit' && current.shapeId) {
+              const existingShape = shapesRef.current.find(
+                (shape): shape is TextShape => shape.id === current.shapeId && shape.type === 'text',
+              )
+              if (existingShape) {
+                const updatedShape: TextShape = {
+                  ...existingShape,
+                  text: htmlContent,
+                  // Keep original font size and color unless explicitly changed elsewhere
+                  fontSize: current.fontSize ?? existingShape.fontSize,
+                  color: current.originalColor ?? existingShape.color,
+                }
+                applyShapeUpdate(updatedShape, `${userName} edited text "${plainText}"`)
+              }
+            } else {
+              const shape: TextShape = {
+                id: current.id,
+                type: 'text',
+                createdAt: getTimestamp(),
+                createdBy: userName,
+                x: current.x,
+                y: current.y,
+                text: htmlContent,
+                color,
+                fontSize: DEFAULT_FONT_SIZE,
+              }
+              commitShape(shape, `${userName} added text "${plainText}"`)
             }
-            commitShape(shape, `${userName} added text "${shape.text}"`)
           }
         }
         return null
       })
     },
-    [color, commitShape, userName],
+    [applyShapeUpdate, color, commitShape, userName],
   )
 
-  const handleTextEditorChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const nextValue = event.target.value
-    setTextEditor((current) => (current ? { ...current, value: nextValue } : current))
+  const handleTextEditorChange = useCallback((value: string) => {
+    setTextEditor((current) => (current ? { ...current, value } : current))
   }, [])
 
   const finalizeCellEditor = useCallback(
@@ -1038,7 +1065,7 @@ function App() {
       if (!targetShape) return
       const description =
         targetShape.type === 'text'
-          ? `${userName} erased text "${targetShape.text}"`
+          ? `${userName} erased text "${extractPlainText(targetShape.text)}"`
           : targetShape.type === 'table'
             ? `${userName} erased a ${targetShape.rows}x${targetShape.cols} table`
             : targetShape.type === 'path'
@@ -1072,11 +1099,27 @@ function App() {
         return
       }
 
+      const existingText = findShapeAtPoint(point)
+      if (existingText && existingText.type === 'text') {
+        setTextEditor({
+          id: existingText.id,
+          shapeId: existingText.id,
+          x: existingText.x,
+          y: existingText.y,
+          value: existingText.text,
+          mode: 'edit',
+          originalColor: existingText.color,
+          fontSize: existingText.fontSize,
+        })
+        return
+      }
+
       setTextEditor({
         id: randomId(),
         x: point.x,
         y: point.y,
         value: '',
+        mode: 'create',
       })
       return
     }
@@ -1179,7 +1222,7 @@ function App() {
     }
     const description =
       target.type === 'text'
-        ? `${userName} moved text "${target.text}"`
+        ? `${userName} moved text "${extractPlainText(target.text)}"`
         : target.type === 'table'
           ? `${userName} moved ${target.rows}x${target.cols} table`
           : target.type === 'path'
@@ -1196,7 +1239,7 @@ function App() {
     if (!target) return
     const description =
       target.type === 'text'
-        ? `${userName} resized text "${target.text}"`
+        ? `${userName} resized text "${extractPlainText(target.text)}"`
         : target.type === 'table'
           ? `${userName} resized ${target.rows}x${target.cols} table`
           : target.type === 'path'
@@ -1601,15 +1644,17 @@ function App() {
         )
         break
       case 'text': {
-        const lines = shape.text.split('\n')
-        const lineHeight = shape.fontSize * 1.2
+        // Use foreignObject to render HTML content
+        // Use a reasonable width estimate - content will wrap
+        const estimatedWidth = 300
+        const estimatedHeight = 100
+
         node = (
-          <text
+          <foreignObject
             x={shape.x}
-            y={shape.y}
-            fill={shape.color}
-            fontSize={shape.fontSize}
-            style={{ fill: shape.color }}
+            y={shape.y - shape.fontSize * 0.8}
+            width={estimatedWidth}
+            height={estimatedHeight}
             className={`board-text ${tool === 'move' ? 'movable-shape' : ''}`}
             onPointerDown={
               tool === 'move'
@@ -1617,12 +1662,20 @@ function App() {
                 : undefined
             }
           >
-            {lines.map((line, index) => (
-              <tspan key={index} x={shape.x} dy={index === 0 ? 0 : lineHeight}>
-                {line}
-              </tspan>
-            ))}
-          </text>
+            <div
+              xmlns="http://www.w3.org/1999/xhtml"
+              style={{
+                color: shape.color,
+                fontSize: `${shape.fontSize}px`,
+                fontFamily: 'inherit',
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+                lineHeight: '1.2',
+                maxWidth: `${estimatedWidth}px`,
+              }}
+              dangerouslySetInnerHTML={{ __html: shape.text }}
+            />
+          </foreignObject>
         )
         break
       }
@@ -1938,7 +1991,9 @@ function App() {
             ref={boardRef}
             className={`board ${tool === 'move' ? 'move-mode' : ''} ${
               tool === 'resize' ? 'resize-mode' : ''
-            } ${tool === 'eraser' ? 'eraser-mode' : ''}`}
+            } ${tool === 'eraser' ? 'eraser-mode' : ''} ${tool === 'text' ? 'text-mode' : ''} ${
+              tool === 'text' && textEditor ? 'text-editing' : ''
+            }`}
             style={tool === 'pen' ? { cursor: buildPencilCursor(color) } : undefined}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -2024,25 +2079,23 @@ function App() {
               })()}
             </svg>
             {textEditor && tool === 'text' && (
-              <textarea
+              <RichTextEditor
                 ref={textInputRef}
-                className="text-editor"
-                style={{
-                  left: textEditor.x,
-                  top: Math.max(textEditor.y - DEFAULT_FONT_SIZE * 1.2, 0),
-                }}
-                onPointerDown={(event) => event.stopPropagation()}
                 value={textEditor.value}
                 onChange={handleTextEditorChange}
                 onBlur={() => finalizeTextEditor(true)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
+                  if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
                     event.preventDefault()
                     finalizeTextEditor(true)
                   } else if (event.key === 'Escape') {
                     event.preventDefault()
                     finalizeTextEditor(false)
                   }
+                }}
+                style={{
+                  left: textEditor.x,
+                  top: Math.max(textEditor.y - DEFAULT_FONT_SIZE * 1.2, 0),
                 }}
                 placeholder="Type here..."
               />
